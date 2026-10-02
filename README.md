@@ -26,6 +26,99 @@ Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4
 
 Les catégories pas encore disponibles sont affichées grisées avec la mention « Bientôt ».
 
+## Installation
+
+Prérequis : **Node.js 20.19 ou plus récent** (ou 22.12+, version exigée par Vite 8) avec npm, et **Git**. Le projet a été développé avec Node 24.
+
+### Linux
+
+1. Installer Git et Node.js. Avec [nvm](https://github.com/nvm-sh/nvm) (n'importe quelle distribution) :
+
+   ```bash
+   # Git (Debian/Ubuntu ; sur Fedora : sudo dnf install git)
+   sudo apt update && sudo apt install -y git
+
+   # nvm, puis Node.js LTS (suivre les instructions du dépôt nvm, puis rouvrir le terminal)
+   nvm install --lts
+   node -v    # doit afficher v20.19 ou plus
+   ```
+
+2. Récupérer le projet et installer les dépendances :
+
+   ```bash
+   git clone https://github.com/julien-lav/que-faire-ce-soir.git
+   cd que-faire-ce-soir
+   npm install
+   ```
+
+3. Créer le fichier des clés (voir [Démarrage rapide](#démarrage-rapide)) :
+
+   ```bash
+   nano .env.local
+   ```
+
+4. Lancer l'app :
+
+   ```bash
+   npm run dev
+   ```
+
+   Puis ouvrir http://localhost:5173.
+
+### Windows
+
+Les commandes sont à lancer dans **PowerShell** (menu Démarrer → « PowerShell »).
+
+1. Installer Git et Node.js avec `winget` (déjà présent sur Windows 10/11 à jour) :
+
+   ```powershell
+   winget install --id Git.Git -e
+   winget install --id OpenJS.NodeJS.LTS -e
+   ```
+
+   **Fermer puis rouvrir PowerShell**, puis vérifier :
+
+   ```powershell
+   node -v    # doit afficher v20.19 ou plus
+   git --version
+   ```
+
+   Sans `winget`, télécharger les installateurs sur [nodejs.org](https://nodejs.org) et [git-scm.com](https://git-scm.com).
+
+2. Récupérer le projet et installer les dépendances :
+
+   ```powershell
+   git clone https://github.com/julien-lav/que-faire-ce-soir.git
+   cd que-faire-ce-soir
+   npm install
+   ```
+
+3. Créer le fichier des clés (voir [Démarrage rapide](#démarrage-rapide)) :
+
+   ```powershell
+   notepad .env.local
+   ```
+
+   Répondre « Oui » à la création du fichier. Dans l'enregistrement, choisir le type **« Tous les fichiers »** : sinon Windows crée `.env.local.txt`, qui n'est pas lu.
+
+4. Lancer l'app :
+
+   ```powershell
+   npm run dev
+   ```
+
+   Puis ouvrir http://localhost:5173.
+
+### Problèmes fréquents
+
+| Problème | Solution |
+|---|---|
+| `npm : impossible de charger le fichier npm.ps1` (Windows) | PowerShell bloque les scripts. Lancer une fois `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, ou utiliser l'« Invite de commandes » (cmd) à la place. |
+| Erreur de version de Node | Vérifier `node -v` (20.19+ ou 22.12+). Avec nvm : `nvm install --lts && nvm use --lts`. |
+| Ciné, spectacles ou concerts : erreur 401 | `.env.local` absent, mal nommé ou clé fausse ; redémarrer `npm run dev` après l'avoir créé. |
+| Le port 5173 est déjà utilisé | Vite choisit le port suivant et l'affiche dans le terminal ; utiliser l'adresse indiquée. |
+| Tester sur un téléphone du même réseau | `npm run dev -- --host`, puis ouvrir l'adresse « Network » affichée. Le navigateur refuse la géolocalisation hors `localhost` sans HTTPS : l'app retombe alors sur Paris 11e. |
+
 ## Démarrage rapide
 
 ```bash
