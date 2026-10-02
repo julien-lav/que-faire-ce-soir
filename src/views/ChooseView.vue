@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CATEGORIES, MORE_CATEGORIES, useSearchStore } from '../stores/search'
+import { CATEGORIES, MORE_CATEGORIES, isAvailable, useSearchStore } from '../stores/search'
 
 const search = useSearchStore()
 const router = useRouter()
@@ -27,17 +27,21 @@ const visibleCategories = computed(() =>
         v-for="c in visibleCategories"
         :key="c.id"
         type="button"
-        class="flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-8 text-xl font-bold transition hover:scale-105"
+        class="flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-8 text-xl font-bold transition hover:scale-105 last:odd:col-span-2"
+        :disabled="!isAvailable(c.id)"
         :class="
-          search.categories.includes(c.id)
-            ? 'border-fuchsia-500 bg-fuchsia-500/20'
-            : 'border-white/20 bg-white/5 hover:bg-white/10'
+          !isAvailable(c.id)
+            ? 'cursor-not-allowed border-white/10 bg-white/5 opacity-40 hover:scale-100'
+            : search.categories.includes(c.id)
+              ? 'border-fuchsia-500 bg-fuchsia-500/20'
+              : 'border-white/20 bg-white/5 hover:bg-white/10'
         "
         :aria-pressed="search.categories.includes(c.id)"
         @click="search.toggleCategory(c.id)"
       >
         <span class="text-5xl">{{ c.emoji }}</span>
         {{ c.label }}
+        <span v-if="!isAvailable(c.id)" class="text-xs font-normal text-white/60">Bientôt</span>
       </button>
     </div>
 
