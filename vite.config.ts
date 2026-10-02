@@ -16,6 +16,33 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/api\/cinema/, '/v1'),
           headers: { Authorization: `Bearer ${env.CINEMA_API_KEY ?? ''}` },
         },
+        // Musées de France (Muséofile) on data.gouv.fr's tabular API, then the département lookup
+        '/api/musees': {
+          target: 'https://tabular-api.data.gouv.fr',
+          changeOrigin: true,
+          rewrite: (path) =>
+            path.replace(
+              /^\/api\/musees\/?/,
+              '/api/resources/5ccd6238-4fb0-4b2c-b14a-581909489320/data/',
+            ),
+        },
+        // Opening hours from OpenStreetMap (Overpass API)
+        '/api/osm': {
+          target: 'https://overpass-api.de',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/osm/, '/api'),
+        },
+        // Fallback Overpass server, used when the main one is overloaded
+        '/api/overpass-mirror': {
+          target: 'https://overpass.kumi.systems',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/overpass-mirror/, '/api'),
+        },
+        '/api/geo': {
+          target: 'https://geo.api.gouv.fr',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/geo/, ''),
+        },
         // Public open data, no key: proxied only to avoid CORS surprises
         '/api/sports': {
           target: 'https://equipements.sports.gouv.fr',

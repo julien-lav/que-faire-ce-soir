@@ -41,6 +41,14 @@ function parisInstant(y: number, m: number, d: number, h: number, min = 0): Date
   return new Date(t)
 }
 
+// Today's weekday in Paris, 0 = Monday ... 6 = Sunday
+export function parisWeekday(): number {
+  const name = new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, weekday: 'short' }).format(
+    new Date(),
+  )
+  return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(name)
+}
+
 // Date.UTC normalises day overflow (e.g. the 32nd), so adding days is safe at month ends
 function parisDay(base: { year: number; month: number; day: number }, addDays: number) {
   const d = new Date(Date.UTC(base.year, base.month - 1, base.day + addDays))
@@ -52,10 +60,11 @@ function parisDay(base: { year: number; month: number; day: number }, addDays: n
 export function getWindow(hour: number | null): { from: Date; to: Date } {
   const today = parisParts(new Date())
   const startDay = parisDay(today, hour === 0 ? 1 : 0)
-  const from =
-    hour === null
-      ? new Date()
-      : parisInstant(startDay.year, startDay.month, startDay.day, hour)
+  const now = new Date()
+  // An hour earlier today (e.g. 11h at 14h) starts now: there is nothing to find in the past
+  const chosen =
+    hour === null ? now : parisInstant(startDay.year, startDay.month, startDay.day, hour)
+  const from = chosen < now ? now : chosen
 
   // Night ends at 03:00 on the morning after the evening that starts at `from`
   const endDay = parisDay(startDay, hour === 0 ? 0 : 1)

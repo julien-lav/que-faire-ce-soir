@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, type Ref } from 'vue'
 import { fetchNearbyShowtimes, groupByMovie } from '../services/cinema'
 import type { ListingItem } from '../services/listing'
+import { fetchNearbyMuseums } from '../services/museums'
+import { fetchNearbyPizzerias } from '../services/pizza'
 import { fetchNearbySports } from '../services/sports'
 import {
   fetchNearbyEvents,
@@ -12,7 +14,8 @@ import {
 // Paris 11e, used when browser geolocation is unavailable or refused
 const DEFAULT_COORDS = { lat: 48.859, lng: 2.379 }
 
-export const HOURS = [18, 19, 20, 21, 22, 23, 0] as const
+// 0 is midnight, i.e. the very end of the evening
+export const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0] as const
 
 export const CATEGORIES = [
   { id: 'pizza', emoji: '🍕', label: 'Pizza' },
@@ -32,7 +35,7 @@ export const MORE_CATEGORIES = [
 export type CategoryId = ((typeof CATEGORIES)[number] | (typeof MORE_CATEGORIES)[number])['id']
 
 // Categories that actually return results; the others are shown greyed out
-const AVAILABLE_CATEGORIES: readonly CategoryId[] = ['cinema', 'show', 'concert', 'sport']
+const AVAILABLE_CATEGORIES: readonly CategoryId[] = ['cinema', 'show', 'concert', 'sport', 'museum', 'pizza']
 export const isAvailable = (id: CategoryId) => AVAILABLE_CATEGORIES.includes(id)
 
 export const useSearchStore = defineStore('search', () => {
@@ -53,6 +56,12 @@ export const useSearchStore = defineStore('search', () => {
   const sportListings = ref<ListingItem[]>([])
   const sportLoading = ref(false)
   const sportError = ref<string | null>(null)
+  const museumListings = ref<ListingItem[]>([])
+  const museumLoading = ref(false)
+  const museumError = ref<string | null>(null)
+  const pizzaListings = ref<ListingItem[]>([])
+  const pizzaLoading = ref(false)
+  const pizzaError = ref<string | null>(null)
 
   const formatHour = (h: number) => `${String(h).padStart(2, '0')}h`
 
@@ -118,6 +127,14 @@ export const useSearchStore = defineStore('search', () => {
     runLoad(sportListings, sportLoading, sportError, () =>
       fetchNearbySports(coords.value.lat, coords.value.lng),
     )
+  const loadPizza = () =>
+    runLoad(pizzaListings, pizzaLoading, pizzaError, () =>
+      fetchNearbyPizzerias(coords.value.lat, coords.value.lng, hour.value),
+    )
+  const loadMuseums = () =>
+    runLoad(museumListings, museumLoading, museumError, () =>
+      fetchNearbyMuseums(coords.value.lat, coords.value.lng, hour.value),
+    )
   const loadConcerts = () =>
     loadTicketmaster(concertListings, concertLoading, concertError, 'Music')
 
@@ -144,11 +161,19 @@ export const useSearchStore = defineStore('search', () => {
     sportListings,
     sportLoading,
     sportError,
+    museumListings,
+    museumLoading,
+    museumError,
+    pizzaListings,
+    pizzaLoading,
+    pizzaError,
     formatHour,
     toggleCategory,
     loadCinema,
     loadShows,
     loadConcerts,
     loadSport,
+    loadMuseums,
+    loadPizza,
   }
 })

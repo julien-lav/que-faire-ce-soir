@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+/* Same colour as the pages (bg-slate-950), so nothing white shows around them, e.g. under the footer */
+html,
+body {
+  background-color: var(--color-slate-950);
+}

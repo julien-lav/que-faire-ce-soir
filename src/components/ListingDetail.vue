@@ -50,7 +50,7 @@ function directionsUrl(p: ListingPlace) {
 
         <div class="flex flex-col gap-4 p-5">
           <div class="flex items-start justify-between gap-4">
-            <h2 class="text-2xl font-bold">{{ item.title }}</h2>
+            <h2 class="min-w-0 break-words text-2xl font-bold">{{ item.title }}</h2>
             <button
               type="button"
               aria-label="Fermer"
@@ -80,7 +80,20 @@ function directionsUrl(p: ListingPlace) {
             </p>
             <p v-if="p.address" class="text-white/60">{{ p.address }}</p>
             <p v-if="p.times.length" class="mt-1 text-white/80">🕐 {{ p.times.join(' · ') }}</p>
-            <p v-else-if="p.detail" class="mt-1 text-white/80">🏟️ {{ p.detail }}</p>
+            <p
+              v-if="p.status"
+              class="mt-1 text-xs font-semibold"
+              :class="p.status.open ? 'text-emerald-400' : 'text-red-400'"
+            >
+              {{ p.status.open ? '✅' : '⛔' }} {{ p.status.label }}
+            </p>
+            <ul v-if="p.schedule?.length" class="mt-2 space-y-0.5 text-xs text-white/70">
+              <li v-for="line in p.schedule" :key="line">{{ line }}</li>
+              <li v-if="p.scheduleSource" class="pt-1 text-white/40">
+                Horaires : © contributeurs {{ p.scheduleSource }}
+              </li>
+            </ul>
+            <p v-else-if="p.detail" class="mt-1 text-white/80">{{ p.detailIcon ?? '🏟️' }} {{ p.detail }}</p>
 
             <div class="mt-3 flex flex-wrap gap-2">
               <a
@@ -91,6 +104,22 @@ function directionsUrl(p: ListingPlace) {
                 class="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-400 px-4 py-2 font-bold"
               >
                 🎟️ Réserver
+              </a>
+              <a
+                v-if="p.phone"
+                :href="`tel:${p.phone.replace(/\s/g, '')}`"
+                class="rounded-full border border-white/30 px-4 py-2 font-bold hover:bg-white/10"
+              >
+                📞 Appeler
+              </a>
+              <a
+                v-if="p.websiteUrl"
+                :href="p.websiteUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="rounded-full border border-white/30 px-4 py-2 font-bold hover:bg-white/10"
+              >
+                🌐 Site officiel
               </a>
               <a
                 :href="directionsUrl(p)"

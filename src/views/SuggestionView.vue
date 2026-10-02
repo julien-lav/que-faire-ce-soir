@@ -9,8 +9,18 @@ const hasCinema = computed(() => search.categories.includes('cinema'))
 const hasShow = computed(() => search.categories.includes('show'))
 const hasConcert = computed(() => search.categories.includes('concert'))
 const hasSport = computed(() => search.categories.includes('sport'))
+const hasMuseum = computed(() => search.categories.includes('museum'))
+const hasPizza = computed(() => search.categories.includes('pizza'))
 const listCount = computed(
-  () => [hasCinema.value, hasShow.value, hasConcert.value, hasSport.value].filter(Boolean).length,
+  () =>
+    [
+      hasPizza.value,
+      hasCinema.value,
+      hasShow.value,
+      hasConcert.value,
+      hasSport.value,
+      hasMuseum.value,
+    ].filter(Boolean).length,
 )
 
 // One column per chosen list on desktop (full class names so Tailwind can see them); stacked on mobile
@@ -19,13 +29,17 @@ const GRID_CLASSES: Record<number, string> = {
   2: 'md:max-w-3xl md:grid-cols-2',
   3: 'md:max-w-6xl md:grid-cols-3',
   4: 'md:max-w-7xl md:grid-cols-2 lg:grid-cols-4',
+  5: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
+  6: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-3',
 }
 
 onMounted(() => {
+  if (hasPizza.value) search.loadPizza()
   if (hasCinema.value) search.loadCinema()
   if (hasShow.value) search.loadShows()
   if (hasConcert.value) search.loadConcerts()
   if (hasSport.value) search.loadSport()
+  if (hasMuseum.value) search.loadMuseums()
 })
 </script>
 
@@ -42,6 +56,15 @@ onMounted(() => {
       class="grid w-full max-w-md grid-cols-1 items-start gap-8"
       :class="GRID_CLASSES[listCount]"
     >
+      <ListingList
+        v-if="hasPizza"
+        title="🍕 Pizzerias près de vous"
+        :items="search.pizzaListings"
+        :loading="search.pizzaLoading"
+        :error="search.pizzaError"
+        loading-text="Recherche des pizzerias…"
+        empty-text="Aucune pizzeria trouvée près de vous."
+      />
       <ListingList
         v-if="hasCinema"
         title="🎬 Cinéma près de vous"
@@ -77,6 +100,15 @@ onMounted(() => {
         :error="search.sportError"
         loading-text="Recherche des équipements sportifs…"
         empty-text="Aucun équipement sportif trouvé près de vous."
+      />
+      <ListingList
+        v-if="hasMuseum"
+        title="🏛️ Musées près de vous"
+        :items="search.museumListings"
+        :loading="search.museumLoading"
+        :error="search.museumError"
+        loading-text="Recherche des musées…"
+        empty-text="Aucun musée trouvé près de vous."
       />
     </div>
     <h1 v-else class="text-3xl font-bold">Ta sortie arrive bientôt…</h1>

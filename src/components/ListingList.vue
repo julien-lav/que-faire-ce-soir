@@ -43,7 +43,13 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
   <section class="w-full text-left">
     <h2 class="mb-4 text-xl font-bold">{{ title }}</h2>
 
-    <p v-if="loading" class="text-white/70">{{ loadingText }}</p>
+    <p v-if="loading" role="status" class="flex items-center gap-3 text-white/70">
+      <span
+        class="size-5 shrink-0 animate-spin rounded-full border-2 border-white/20 border-t-fuchsia-500"
+        aria-hidden="true"
+      ></span>
+      {{ loadingText }}
+    </p>
     <p v-else-if="error" class="text-red-400">{{ error }}</p>
     <p v-else-if="!items.length" class="text-white/70">{{ emptyText }}</p>
 
@@ -58,8 +64,9 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
         @keydown.enter.self="selected = item"
       >
         <h3 class="flex items-center justify-between gap-2 font-semibold">
-          {{ item.title }}
-          <span class="text-white/40" aria-hidden="true">›</span>
+          <!-- Long names without spaces (e.g. "Karaté/Kobudo/Ninjutsu/...") are cut after 2 lines -->
+          <span class="line-clamp-2 min-w-0 break-words" :title="item.title">{{ item.title }}</span>
+          <span class="shrink-0 text-white/40" aria-hidden="true">›</span>
         </h3>
         <ul v-if="item.tags?.length" class="mt-2 flex flex-wrap gap-1.5">
           <li
@@ -77,8 +84,17 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
               — {{ formatDistance(p.distanceKm) }}
             </template>
           </p>
-          <p v-if="p.times.length" class="text-white/60">🕐 {{ p.times.join(' · ') }}</p>
-          <p v-else-if="p.detail" class="text-white/60">🏟️ {{ p.detail }}</p>
+          <p v-if="p.times.length" class="text-white/60">
+            🕐 {{ p.times.join(' · ') }}
+          </p>
+          <p
+            v-if="p.status"
+            class="text-xs font-semibold"
+            :class="p.status.open ? 'text-emerald-400' : 'text-red-400'"
+          >
+            {{ p.status.open ? '✅' : '⛔' }} {{ p.status.label }}
+          </p>
+          <p v-else-if="p.detail" class="text-white/60">{{ p.detailIcon ?? '🏟️' }} {{ p.detail }}</p>
         </div>
         <button
           v-if="item.places.length > MAX_PLACES"

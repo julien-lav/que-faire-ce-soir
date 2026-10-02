@@ -12,6 +12,14 @@ export interface ListingPlace {
   lat?: number
   lng?: number
   bookingUrl?: string
+  websiteUrl?: string
+  phone?: string
+  // Opening-hours info for places without showtimes (museums)
+  status?: { label: string; open: boolean }
+  schedule?: string[]
+  scheduleSource?: string
+  // Emoji before `detail` (defaults to the sports facility one)
+  detailIcon?: string
 }
 
 const EARTH_RADIUS_KM = 6371
