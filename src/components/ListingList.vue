@@ -43,29 +43,43 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
   <section class="w-full text-left">
     <h2 class="mb-4 text-xl font-bold">{{ title }}</h2>
 
-    <p v-if="loading" role="status" class="flex items-center gap-3 text-white/70">
+    <!-- Results already received stay visible while the rest (e.g. opening hours) still loads -->
+    <p
+      v-if="loading"
+      role="status"
+      class="flex items-center gap-3 text-white/70"
+      :class="{ 'mb-3 text-sm': items.length }"
+    >
       <span
         class="size-5 shrink-0 animate-spin rounded-full border-2 border-white/20 border-t-fuchsia-500"
         aria-hidden="true"
       ></span>
-      {{ loadingText }}
+      {{ items.length ? 'Mise à jour…' : loadingText }}
     </p>
     <p v-else-if="error" class="text-red-400">{{ error }}</p>
     <p v-else-if="!items.length" class="text-white/70">{{ emptyText }}</p>
 
-    <ul v-else class="flex flex-col gap-3">
+    <ul v-if="items.length" class="flex flex-col gap-3">
       <li
         v-for="item in visibleItems"
         :key="item.id"
         role="button"
         tabindex="0"
-        class="cursor-pointer rounded-xl border border-white/20 bg-white/5 p-4 transition hover:border-fuchsia-500/60 hover:bg-white/10"
+        class="cursor-pointer rounded-xl border p-4 transition hover:bg-white/10"
+        :class="
+          item.favorite
+            ? 'border-amber-400/70 bg-amber-400/10 hover:border-amber-400'
+            : 'border-white/20 bg-white/5 hover:border-fuchsia-500/60'
+        "
         @click="selected = item"
         @keydown.enter.self="selected = item"
       >
         <h3 class="flex items-center justify-between gap-2 font-semibold">
           <!-- Long names without spaces (e.g. "Karaté/Kobudo/Ninjutsu/...") are cut after 2 lines -->
-          <span class="line-clamp-2 min-w-0 break-words" :title="item.title">{{ item.title }}</span>
+          <span class="line-clamp-2 min-w-0 break-words" :title="item.title">
+            <span v-if="item.favorite" class="text-amber-400" role="img" aria-label="Favori">★</span>
+            {{ item.title }}
+          </span>
           <span class="shrink-0 text-white/40" aria-hidden="true">›</span>
         </h3>
         <ul v-if="item.tags?.length" class="mt-2 flex flex-wrap gap-1.5">

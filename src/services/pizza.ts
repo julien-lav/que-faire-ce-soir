@@ -3,7 +3,6 @@ import { bbox, overpass, positionOf } from './overpass'
 import { hoursInfo } from './placeHours'
 
 // Pizzerias come from OpenStreetMap (ODbL): restaurants and fast-foods tagged `cuisine=*pizza*`.
-const MAX_RESULTS = 60
 
 const CUISINE_LABELS: Record<string, string> = {
   italian: 'Italien',
@@ -35,13 +34,19 @@ function tagsOf(t: Record<string, string>): string[] {
   return tags
 }
 
-export async function fetchNearbyPizzerias(
+const RADIUS_KM = 2
+
+// `cuisine=pizza` is an exact, indexed match: Overpass answers it much faster than the regex that
+// also catches "italian;pizza". So the exact match is shown first, then replaced by the full search.
+async function searchPizzerias(
   lat: number,
   lng: number,
   hour: number | null,
-  radiusKm = 2,
+  exactCuisine: boolean,
 ): Promise<ListingItem[]> {
-  const query = `[out:json][timeout:40];nwr["cuisine"~"pizza"](${bbox(lat, lng, radiusKm)});out center tags;`
+  const radiusKm = RADIUS_KM
+  const cuisine = exactCuisine ? '"cuisine"="pizza"' : '"cuisine"~"pizza"'
+  const query = `[out:json][timeout:40];nwr[${cuisine}](${bbox(lat, lng, radiusKm)});out center tags;`
 
   // Pizzerias confirmed open come first, then the ones whose hours are missing
   const open: ListingItem[] = []
@@ -88,5 +93,23 @@ export async function fetchNearbyPizzerias(
     })
   }
 
-  return [...sortByDistance(open), ...sortByDistance(unknown)].slice(0, MAX_RESULTS)
+  return [...sortByDistance(open), ...sortByDistance(unknown)]
+}
+
+export async function fetchNearbyPizzerias(
+  lat: number,
+  lng: number,
+  hour: number | null,
+  onPartial?: (items: ListingItem[]) => void,
+): Promise<ListingItem[]> {
+  // Sequential on purpose: the public Overpass servers are easily overloaded
+  const exact = await searchPizzerias(lat, lng, hour, true)
+  onPartial?.(exact)
+
+  try {
+    return await searchPizzerias(lat, lng, hour, false)
+  } catch {
+    // The full search only adds a few more places: keep the first list rather than show an error
+    return exact
+  }
 }

@@ -35,6 +35,8 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
 export interface ListingItem {
   id: string
   title: string
+  // Hand-picked favourite (see data/favorites.ts): listed first, with a star
+  favorite?: boolean
   places: ListingPlace[]
   // Shown in the detail panel
   imageUrl?: string

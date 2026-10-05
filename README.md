@@ -8,8 +8,9 @@ Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4
 
 - **Choix de l'heure** : de 8h à minuit. Le sélecteur affiche 7 heures à la fois (18h → minuit au départ) ; des flèches ‹ › permettent de remonter dans la journée et de revenir.
 - **Choix des envies** : plusieurs catégories possibles en même temps. Quatre blocs en vue (Pizza, Ciné, Spectacle, Concert), les autres (Sport, Musée…) sont sous « Plus de choix ».
-- **Résultats près de vous** : position via la géolocalisation du navigateur, avec repli sur Paris 11e si elle est refusée. Un spinner s'affiche pendant le chargement de chaque liste.
+- **Lieu** : par défaut « Autour de moi » (géolocalisation du navigateur, avec repli sur Paris 11e si elle est refusée, ce qui est alors indiqué). Le bouton « Changer de lieu » ouvre une recherche avec suggestions (ville ou adresse en France) ; toutes les listes cherchent alors autour du lieu choisi. Un spinner s'affiche pendant le chargement de chaque liste.
 - **Fenêtre horaire** : de l'heure choisie jusqu'à 3h du matin, calculée à l'heure de Paris quel que soit le fuseau du navigateur. Une heure déjà passée aujourd'hui démarre à maintenant.
+- **Favoris** : une courte liste écrite à la main dans `src/data/favorites.ts` (un nom et une zone, par exemple « I Briganti » dans le 14e). Un résultat qui correspond passe en premier, avec une ★ et un fond doré. Un favori n'apparaît que s'il fait partie des résultats (dans la zone cherchée, et ouvert si une heure est choisie).
 - **Cartes** : titre (limité à 2 lignes), pastilles de genre, lieux triés par distance (3 par résultat, puis « Voir plus »).
 - **Fiche détail** au clic sur une carte : image, genres, description, adresse, horaires, et les boutons « Réserver » (spectacles et concerts), « Appeler » et « Site officiel » (pizzerias, musées) et « Itinéraire ».
 - **Responsive** : une colonne par liste sur PC (jusqu'à 6), listes empilées sur téléphone avec les 10 premiers résultats puis « Voir plus ».
@@ -157,6 +158,7 @@ Le navigateur n'appelle jamais directement les API. Il appelle `/api/...` et le 
 | `/api/sports/*` | `https://equipements.sports.gouv.fr/api/explore/v2.1/catalog/datasets/*` | aucune |
 | `/api/musees/*` | API tabulaire de data.gouv.fr (ressource Muséofile) | aucune |
 | `/api/geo/*` | `https://geo.api.gouv.fr/*` | aucune |
+| `/api/adresse/*` | `https://api-adresse.data.gouv.fr/*` (recherche de lieu) | aucune |
 | `/api/osm/*` | `https://overpass-api.de/api/*` | aucune |
 | `/api/overpass-mirror/*` | `https://overpass.kumi.systems/api/*` (serveur de secours) | aucune |
 
@@ -172,7 +174,7 @@ Ces données n'ont pas d'horaires : l'heure choisie n'est pas utilisée pour le 
 
 ### Pizza : pizzerias OpenStreetMap
 
-Les pizzerias sont les restaurants et fast-foods d'OpenStreetMap dont la cuisine (`cuisine`) contient « pizza », dans un rayon de 2 km. Chaque carte affiche des pastilles (Livraison, À emporter, Sur place, autres cuisines), la distance et les horaires du jour. La fiche détail ajoute le téléphone (« Appeler »), le site web et l'itinéraire. Comme pour les musées : les pizzerias confirmées ouvertes passent en premier, puis celles sans horaires renseignés, et celles que les horaires disent fermées sont masquées. Les données sont © contributeurs OpenStreetMap (ODbL), avec une couverture inégale (surtout pour le téléphone, la livraison et les horaires).
+Les pizzerias sont les restaurants et fast-foods d'OpenStreetMap dont la cuisine (`cuisine`) contient « pizza », dans un rayon de 2 km. La recherche se fait en deux temps : la correspondance exacte `cuisine=pizza` (indexée, donc rapide) s'affiche d'abord, puis la recherche complète (qui ajoute par exemple « italian;pizza ») la remplace. Les réponses d'OpenStreetMap sont gardées 10 minutes dans `sessionStorage` (effacé à la fermeture de l'onglet) : recharger la page est instantané. Plus généralement, la recherche d'une catégorie démarre dès qu'on la coche sur la page des envies (et non au clic sur « GO ») : le temps que l'utilisateur finisse de choisir, les sources lentes ont déjà répondu. Chaque carte affiche des pastilles (Livraison, À emporter, Sur place, autres cuisines), la distance et les horaires du jour. La fiche détail ajoute le téléphone (« Appeler »), le site web et l'itinéraire. Comme pour les musées : les pizzerias confirmées ouvertes passent en premier, puis celles sans horaires renseignés, et celles que les horaires disent fermées sont masquées. Les données sont © contributeurs OpenStreetMap (ODbL), avec une couverture inégale (surtout pour le téléphone, la livraison et les horaires).
 
 ### Musées : liste du ministère + horaires OpenStreetMap
 
@@ -180,7 +182,7 @@ Les pizzerias sont les restaurants et fast-foods d'OpenStreetMap dont la cuisine
 
 **Les horaires.** Le jeu du ministère n'en contient pas. On les complète avec le champ `opening_hours` d'OpenStreetMap (API Overpass) : chaque musée est rapproché de sa fiche OSM par sa position et son nom. Un petit lecteur (`src/services/openingHours.ts`) comprend les horaires par jour de semaine ; ce qu'il ne comprend pas (mois, lever du soleil…) est affiché tel quel. Les jours fériés sont ignorés.
 
-**L'affichage.**
+**L'affichage.** La liste des musées s'affiche dès que les données du ministère sont reçues (avec « Chargement des horaires… »), puis se met à jour quand OpenStreetMap répond : les musées confirmés ouverts remontent en tête et les fermés disparaissent.
 
 1. D'abord les musées confirmés ouverts, triés par distance, avec les horaires du jour et, si une heure est choisie, « Ouvert à 20h ».
 2. Ensuite ceux dont les horaires ne sont pas renseignés (« Horaires non renseignés »), avec un lien vers leur site officiel.
@@ -196,7 +198,7 @@ src/
 ├─ components/     ListingList (liste, spinner, « Voir plus »), ListingDetail (fiche),
 │                  LocationPicker, TimeSelector (heures et flèches)
 ├─ stores/         search.ts : choix de l'utilisateur, position, chargement de chaque liste
-├─ services/       cinema, ticketmaster, sports, museums, pizza,
+├─ services/       cinema, ticketmaster, sports, museums, pizza, geocoding (recherche de lieu),
 │                  overpass (OpenStreetMap + serveur de secours), openingHours (lecteur d'horaires),
 │                  placeHours (horaires d'une carte), timeWindow (fenêtre à l'heure de Paris),
 │                  listing (forme commune)

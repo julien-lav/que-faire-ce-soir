@@ -131,20 +131,15 @@ function findOsmMatch(osm: OsmMuseum[], name: string, pos: { lat: number; lng: n
   return best?.museum
 }
 
-export async function fetchNearbyMuseums(
+function buildMuseums(
+  museums: MuseumRow[],
+  osm: OsmMuseum[],
   lat: number,
   lng: number,
   hour: number | null,
-  radiusKm = 15,
-): Promise<ListingItem[]> {
-  const department = await departmentAt(lat, lng)
-  if (!department) return []
-
-  const [museums, osm] = await Promise.all([
-    fetchDepartmentMuseums(department),
-    fetchOsmMuseums(lat, lng, radiusKm),
-  ])
-
+  radiusKm: number,
+  hoursPending: boolean,
+): ListingItem[] {
   // Museums confirmed open come first, then the ones whose hours are missing
   const open: ListingItem[] = []
   const unknown: ListingItem[] = []
@@ -159,7 +154,7 @@ export async function fetchNearbyMuseums(
     // Only museums that are open (or whose hours we do not know) are worth listing
     if (info?.closed) continue
     const hours: Partial<ListingPlace> = info?.place ?? {
-      detail: 'Horaires non renseignés',
+      detail: hoursPending ? 'Chargement des horaires…' : 'Horaires non renseignés',
       detailIcon: '🕐',
     }
 
@@ -193,4 +188,23 @@ export async function fetchNearbyMuseums(
   }
 
   return [...sortByDistance(open), ...sortByDistance(unknown)]
+}
+
+export async function fetchNearbyMuseums(
+  lat: number,
+  lng: number,
+  hour: number | null,
+  onPartial?: (items: ListingItem[]) => void,
+  radiusKm = 15,
+): Promise<ListingItem[]> {
+  const department = await departmentAt(lat, lng)
+  if (!department) return []
+
+  // Hours come from a slower, optional service: ask for them right away, but show the museums
+  // as soon as the ministry data is there. fetchOsmMuseums never rejects.
+  const osm = fetchOsmMuseums(lat, lng, radiusKm)
+  const museums = await fetchDepartmentMuseums(department)
+  onPartial?.(buildMuseums(museums, [], lat, lng, hour, radiusKm, true))
+
+  return buildMuseums(museums, await osm, lat, lng, hour, radiusKm, false)
 }

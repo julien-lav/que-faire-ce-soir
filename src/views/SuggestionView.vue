@@ -33,14 +33,8 @@ const GRID_CLASSES: Record<number, string> = {
   6: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-3',
 }
 
-onMounted(() => {
-  if (hasPizza.value) search.loadPizza()
-  if (hasCinema.value) search.loadCinema()
-  if (hasShow.value) search.loadShows()
-  if (hasConcert.value) search.loadConcerts()
-  if (hasSport.value) search.loadSport()
-  if (hasMuseum.value) search.loadMuseums()
-})
+// Searches may already be running (or done) since the categories were ticked
+onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
 </script>
 
 <template>

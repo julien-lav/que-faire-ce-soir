@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, type Ref } from 'vue'
 import { fetchNearbyShowtimes, groupByMovie } from '../services/cinema'
+import { withFavorites } from '../data/favorites'
 import type { ListingItem } from '../services/listing'
 import { fetchNearbyMuseums } from '../services/museums'
 import { fetchNearbyPizzerias } from '../services/pizza'
@@ -13,6 +14,16 @@ import {
 
 // Paris 11e, used when browser geolocation is unavailable or refused
 const DEFAULT_COORDS = { lat: 48.859, lng: 2.379 }
+
+// Shown when no place was typed: the position comes from the browser
+const GEOLOCATION_LABEL = 'Autour de moi'
+const FALLBACK_LABEL = 'Paris 11e (position indisponible)'
+
+export interface ChosenPlace {
+  label: string
+  lat: number
+  lng: number
+}
 
 // 0 is midnight, i.e. the very end of the evening
 export const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0] as const
@@ -39,7 +50,9 @@ const AVAILABLE_CATEGORIES: readonly CategoryId[] = ['cinema', 'show', 'concert'
 export const isAvailable = (id: CategoryId) => AVAILABLE_CATEGORIES.includes(id)
 
 export const useSearchStore = defineStore('search', () => {
-  const location = ref('Paris 11e')
+  const location = ref(GEOLOCATION_LABEL)
+  // A place picked by the user; null means "use the browser's position"
+  const place = ref<ChosenPlace | null>(null)
   const hour = ref<number | null>(null)
   const categories = ref<CategoryId[]>([])
 
@@ -65,13 +78,19 @@ export const useSearchStore = defineStore('search', () => {
 
   const formatHour = (h: number) => `${String(h).padStart(2, '0')}h`
 
-  function locate(): Promise<{ lat: number; lng: number }> {
+  function locate(): Promise<{ coords: { lat: number; lng: number }; fallback: boolean }> {
+    const fallback = { coords: { ...DEFAULT_COORDS }, fallback: true }
     return new Promise((resolve) => {
-      if (!('geolocation' in navigator)) return resolve({ ...DEFAULT_COORDS })
+      if (!('geolocation' in navigator)) return resolve(fallback)
       navigator.geolocation.getCurrentPosition(
-        (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => resolve({ ...DEFAULT_COORDS }),
-        { timeout: 5000 },
+        (p) =>
+          resolve({
+            coords: { lat: p.coords.latitude, lng: p.coords.longitude },
+            fallback: false,
+          }),
+        () => resolve(fallback),
+        // Reuse the browser's last position (up to 10 min old) instead of waiting for a new fix
+        { timeout: 3000, maximumAge: 10 * 60_000 },
       )
     })
   }
@@ -79,8 +98,18 @@ export const useSearchStore = defineStore('search', () => {
   // Shared so that loading several lists asks for the browser position only once
   let locating: Promise<void> | null = null
   function ensureCoords() {
-    locating ??= locate().then((c) => {
+    // A place typed by the user wins over the browser's position
+    if (place.value) {
+      coords.value = { lat: place.value.lat, lng: place.value.lng }
+      return Promise.resolve()
+    }
+
+    const began = performance.now()
+    locating ??= locate().then(({ coords: c, fallback }) => {
       coords.value = c
+      // Say so when the results are not around the user after all
+      if (fallback) location.value = FALLBACK_LABEL
+      console.info(`[perf] Géolocalisation : ${Math.round(performance.now() - began)} ms`)
     })
     return locating
   }
@@ -89,16 +118,26 @@ export const useSearchStore = defineStore('search', () => {
     items: Ref<ListingItem[]>,
     loading: Ref<boolean>,
     error: Ref<string | null>,
-    fetchItems: () => Promise<ListingItem[]>,
+    // `onPartial` lets a source show a first result before its final one
+    fetchItems: (onPartial: (partial: ListingItem[]) => void) => Promise<ListingItem[]>,
   ) {
     loading.value = true
     error.value = null
+    items.value = []
+    let hasPartial = false
+    const started = performance.now()
     try {
       await ensureCoords()
-      items.value = await fetchItems()
+      items.value = withFavorites(await fetchItems((partial) => {
+        items.value = withFavorites(partial)
+        hasPartial = true
+        console.info(`[perf] Premier affichage : ${Math.round(performance.now() - started)} ms`)
+      }))
+      console.info(`[perf] Liste complète : ${Math.round(performance.now() - started)} ms`)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Erreur inconnue'
-      items.value = []
+      // Keep what was already shown: a first result is better than an empty list
+      if (!hasPartial) items.value = []
     } finally {
       loading.value = false
     }
@@ -128,24 +167,64 @@ export const useSearchStore = defineStore('search', () => {
       fetchNearbySports(coords.value.lat, coords.value.lng),
     )
   const loadPizza = () =>
-    runLoad(pizzaListings, pizzaLoading, pizzaError, () =>
-      fetchNearbyPizzerias(coords.value.lat, coords.value.lng, hour.value),
+    runLoad(pizzaListings, pizzaLoading, pizzaError, (onPartial) =>
+      fetchNearbyPizzerias(coords.value.lat, coords.value.lng, hour.value, onPartial),
     )
   const loadMuseums = () =>
-    runLoad(museumListings, museumLoading, museumError, () =>
-      fetchNearbyMuseums(coords.value.lat, coords.value.lng, hour.value),
+    runLoad(museumListings, museumLoading, museumError, (onPartial) =>
+      fetchNearbyMuseums(coords.value.lat, coords.value.lng, hour.value, onPartial),
     )
   const loadConcerts = () =>
     loadTicketmaster(concertListings, concertLoading, concertError, 'Music')
 
+  // What to run for each category that has results (the others are greyed out)
+  const loaders: Partial<Record<CategoryId, { load: () => Promise<void>; error: Ref<string | null> }>> = {
+    cinema: { load: loadCinema, error: cinemaError },
+    show: { load: loadShows, error: showError },
+    concert: { load: loadConcerts, error: concertError },
+    sport: { load: loadSport, error: sportError },
+    museum: { load: loadMuseums, error: museumError },
+    pizza: { load: loadPizza, error: pizzaError },
+  }
+  const started = new Map<CategoryId, { hour: number | null; done: Promise<void> }>()
+
+  // Starts a category's search unless it already ran (or is running) for the current hour, so a
+  // search begun when the category was ticked is reused when the results page opens.
+  function ensureLoaded(id: CategoryId) {
+    const loader = loaders[id]
+    if (!loader) return
+    const previous = started.get(id)
+    if (previous && previous.hour === hour.value) return
+
+    const done = loader.load().then(() => {
+      // Let a failed search be retried next time
+      if (loader.error.value) started.delete(id)
+    })
+    started.set(id, { hour: hour.value, done })
+  }
+
+  // Pick a place (or null for "around me"); every category will search again from there
+  function setPlace(p: ChosenPlace | null) {
+    place.value = p
+    location.value = p ? p.label : GEOLOCATION_LABEL
+    locating = null
+    started.clear()
+  }
+
   function toggleCategory(id: CategoryId) {
     const i = categories.value.indexOf(id)
-    if (i === -1) categories.value.push(id)
-    else categories.value.splice(i, 1)
+    if (i === -1) {
+      categories.value.push(id)
+      // Slow sources (OpenStreetMap) get a head start while the user picks the rest
+      ensureLoaded(id)
+    } else {
+      categories.value.splice(i, 1)
+    }
   }
 
   return {
     location,
+    place,
     hour,
     categories,
     coords,
@@ -169,11 +248,7 @@ export const useSearchStore = defineStore('search', () => {
     pizzaError,
     formatHour,
     toggleCategory,
-    loadCinema,
-    loadShows,
-    loadConcerts,
-    loadSport,
-    loadMuseums,
-    loadPizza,
+    ensureLoaded,
+    setPlace,
   }
 })

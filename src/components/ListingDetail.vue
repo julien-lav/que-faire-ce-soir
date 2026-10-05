@@ -50,7 +50,10 @@ function directionsUrl(p: ListingPlace) {
 
         <div class="flex flex-col gap-4 p-5">
           <div class="flex items-start justify-between gap-4">
-            <h2 class="min-w-0 break-words text-2xl font-bold">{{ item.title }}</h2>
+            <h2 class="min-w-0 break-words text-2xl font-bold">
+              <span v-if="item.favorite" class="text-amber-400" role="img" aria-label="Favori">★</span>
+              {{ item.title }}
+            </h2>
             <button
               type="button"
               aria-label="Fermer"
