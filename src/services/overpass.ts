@@ -1,6 +1,14 @@
 // OpenStreetMap's public Overpass servers are free but often slow or overloaded (504, timeouts).
 // Both servers are asked at the same time and the first answer wins.
-const ENDPOINTS = ['/api/osm', '/api/overpass-mirror', '/api/overpass-mirror2']
+// In dev, Vite proxies them. In production they are called straight from the browser: Overpass allows
+// cross-origin requests, and it does not answer requests coming from Cloudflare Workers.
+const ENDPOINTS = import.meta.env.PROD
+  ? [
+      'https://overpass-api.de/api',
+      'https://overpass.kumi.systems/api',
+      'https://overpass.private.coffee/api',
+    ]
+  : ['/api/osm', '/api/overpass-mirror', '/api/overpass-mirror2']
 const TIMEOUT_MS = 45_000
 
 // 429 / 502 / 503 / 504 usually mean "busy right now": trying again a moment later often works
