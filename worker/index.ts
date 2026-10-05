@@ -27,6 +27,7 @@ const ROUTES: Record<string, Route> = {
   },
   osm: { target: 'https://overpass-api.de', rewrite: (rest) => `/api${rest}` },
   'overpass-mirror': { target: 'https://overpass.kumi.systems', rewrite: (rest) => `/api${rest}` },
+  'overpass-mirror2': { target: 'https://overpass.private.coffee', rewrite: (rest) => `/api${rest}` },
   adresse: { target: 'https://api-adresse.data.gouv.fr', rewrite: (rest) => rest },
   geo: { target: 'https://geo.api.gouv.fr', rewrite: (rest) => rest },
   sports: {

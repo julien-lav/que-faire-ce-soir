@@ -38,6 +38,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/overpass-mirror/, '/api'),
         },
+        '/api/overpass-mirror2': {
+          target: 'https://overpass.private.coffee',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/overpass-mirror2/, '/api'),
+        },
         // Place search (addresses, cities) for the location field
         '/api/adresse': {
           target: 'https://api-adresse.data.gouv.fr',

@@ -1,6 +1,6 @@
 // OpenStreetMap's public Overpass servers are free but often slow or overloaded (504, timeouts).
 // Both servers are asked at the same time and the first answer wins.
-const ENDPOINTS = ['/api/osm', '/api/overpass-mirror']
+const ENDPOINTS = ['/api/osm', '/api/overpass-mirror', '/api/overpass-mirror2']
 const TIMEOUT_MS = 45_000
 
 // 429 / 502 / 503 / 504 usually mean "busy right now": trying again a moment later often works
