@@ -1,8 +1,36 @@
 <script setup lang="ts">
+import { useRoute, useRouter } from 'vue-router'
 import BackToTop from './components/BackToTop.vue'
+
+const route = useRoute()
+const router = useRouter()
+
+// Previous page when there is one in this app, home otherwise (e.g. a page opened from a shared link)
+const goBack = () => (window.history.state?.back ? router.back() : router.push('/'))
 </script>
 
 <template>
+  <button
+    v-if="route.name !== 'home'"
+    type="button"
+    aria-label="Retour"
+    title="Retour"
+    class="absolute top-4 left-4 z-40 text-white/60 transition hover:text-white"
+    @click="goBack"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      class="size-6"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M19 12H5M12 19l-7-7 7-7" />
+    </svg>
+  </button>
   <a
     href="https://github.com/julien-lav/que-faire-ce-soir"
     target="_blank"

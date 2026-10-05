@@ -2,6 +2,8 @@
 
 Une petite app pour trouver quoi faire ce soir près de chez soi : une pizza, un film, un spectacle, un concert, du sport ou un musée. On choisit une heure et une ou plusieurs envies, l'app liste ce qui est disponible autour de soi, trié par distance.
 
+🔗 **Site en ligne : https://que-faire-ce-soir.julien-laville.workers.dev/**
+
 Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4, Vite.
 
 ## Fonctionnalités
@@ -160,7 +162,8 @@ Le navigateur n'appelle jamais directement les API. Il appelle `/api/...` et le 
 | `/api/geo/*` | `https://geo.api.gouv.fr/*` | aucune |
 | `/api/adresse/*` | `https://api-adresse.data.gouv.fr/*` (recherche de lieu) | aucune |
 | `/api/osm/*` | `https://overpass-api.de/api/*` | aucune |
-| `/api/overpass-mirror/*` | `https://overpass.kumi.systems/api/*` (serveur de secours) | aucune |
+| `/api/overpass-mirror/*` | `https://overpass.openstreetmap.fr/api/*` (serveur de secours) | aucune |
+| `/api/overpass-mirror2/*` | `https://lz4.overpass-api.de/api/*` (deuxième secours) | aucune |
 
 ### Sport : trois jeux de données croisés
 
@@ -209,14 +212,29 @@ Chaque source est convertie vers la même forme (`ListingItem` → `ListingPlace
 
 ## Passage en production
 
-Les proxys ci-dessus n'existent qu'en développement. En production, `worker/index.ts` (Cloudflare Worker, configuré par `wrangler.jsonc`) en est l'équivalent : il répond aux chemins `/api/...` et les clés sont lues côté serveur, le reste étant servi comme fichiers statiques depuis `dist`.
+Les proxys ci-dessus n'existent qu'en développement. En production, `worker/index.ts` (Cloudflare Worker, configuré par `wrangler.jsonc`) en est l'équivalent : il répond aux chemins `/api/...`, lit les clés côté serveur, et le reste est servi comme fichiers statiques depuis `dist` (avec repli sur `index.html` pour le routeur Vue). Les appels Overpass (pizzas, horaires des musées) ne passent pas par le Worker en production : le navigateur les envoie directement aux serveurs Overpass (voir `src/services/overpass.ts`).
 
-Cloudflare Workers : build `npm run build`, déploiement `npx wrangler deploy`. Ajouter `CINEMA_API_KEY` et `TICKETMASTER_KEY` dans Settings → Variables and Secrets du Worker (type Secret), puis redéployer.
+### Déployer sur Cloudflare (Workers)
+
+Le site est hébergé comme **Worker avec fichiers statiques** (domaine `*.workers.dev`), pas comme Cloudflare Pages : le dossier `functions/` de Pages n'est donc pas utilisé.
+
+1. **Connecter le dépôt** : Workers & Pages → Create → importer le dépôt GitHub, branche de production `master`.
+2. **Build** (Settings → Build) : commande de build `npm run build`, commande de déploiement `npx wrangler deploy`, dossier racine `/`.
+3. **Nom du Worker** : le `name` de `wrangler.jsonc` (`que-faire-ce-soir`) doit être identique au nom du Worker dans Cloudflare, sinon le déploiement crée un autre Worker.
+4. **Ajouter les clés** `CINEMA_API_KEY` et `TICKETMASTER_KEY`, au bon endroit :
+   - Dashboard : Workers & Pages → le Worker → **Settings → Variables and Secrets** (le bloc du haut, celui du Worker en fonctionnement), type **Secret** ;
+   - ou en terminal : `npx wrangler secret put CINEMA_API_KEY` puis `npx wrangler secret put TICKETMASTER_KEY` (connexion à Cloudflare au premier lancement).
+   - **Piège** : la section « Variables and secrets » de **Settings → Build** ne sert qu'au moment du build, le Worker ne la voit jamais (erreurs 401 sur Ticketmaster et Ciné).
+   - Une variable de type *Text* peut être supprimée à chaque déploiement ; `keep_vars` dans `wrangler.jsonc` limite ce risque, mais les clés doivent rester de type *Secret*.
+5. **Déployer** : un `git push` sur `master` déclenche le build. Un secret ajouté ou modifié ne s'applique qu'au déploiement suivant.
+6. **Vérifier** : ouvrir `/api/adresse/search/?q=paris` (doit renvoyer du JSON) et `/api/ticketmaster/events.json?size=1` (des événements, et non « Invalid ApiKey »).
+
+Notes sur `wrangler.jsonc` : `assets.directory` pointe sur `dist`, `run_worker_first: ["/api/*"]` envoie uniquement les chemins `/api/` au Worker, et `not_found_handling: single-page-application` renvoie `index.html` pour les autres URL.
 
 Autres points à connaître :
 
 - Ticketmaster : quota par défaut de 5000 appels par jour et 5 requêtes par seconde. Sa couverture est surtout forte hors de France, donc certaines listes peuvent être courtes.
 - La recherche par position de Ticketmaster (`latlong`) est marquée comme dépréciée dans sa documentation.
-- Le serveur Overpass public d'OpenStreetMap est à usage raisonnable et souvent surchargé : chaque requête est tentée sur le serveur principal puis sur un serveur de secours. Pour un vrai trafic, prévoir un cache côté serveur ou une instance dédiée. S'il est indisponible, les musées s'affichent sans horaires, et la liste Pizza affiche une erreur.
+- Le serveur Overpass public d'OpenStreetMap est à usage raisonnable et souvent surchargé : chaque requête est envoyée en même temps à plusieurs serveurs (`overpass.openstreetmap.fr`, `lz4.overpass-api.de`, le serveur principal et un miroir) et la première réponse l'emporte, car ils tombent tour à tour en surcharge. Pour un vrai trafic, prévoir un cache côté serveur ou une instance dédiée. S'il est indisponible, les musées s'affichent sans horaires, et la liste Pizza affiche une erreur.
 - L'app cible la France : les fenêtres horaires sont calculées à l'heure de Paris.
 - Ne mettez jamais une clé dans un fichier suivi par git ni dans une variable `VITE_*`.
