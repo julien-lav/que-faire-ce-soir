@@ -45,6 +45,12 @@ export default {
     const url = new URL(request.url)
     if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 })
 
+    // TEMPORARY diagnostic: remove once the keys work
+    if (url.pathname === '/api/_debug') {
+      const len = (v?: string) => (v === undefined ? 'missing' : `${v.length} chars (${v.trim().length} trimmed)`)
+      return Response.json({ CINEMA_API_KEY: len(env.CINEMA_API_KEY), TICKETMASTER_KEY: len(env.TICKETMASTER_KEY) })
+    }
+
     const [, , name, ...tail] = url.pathname.split('/') // ['', 'api', name, ...]
     const route = name ? ROUTES[name] : undefined
     if (!route) return new Response('Not found', { status: 404 })

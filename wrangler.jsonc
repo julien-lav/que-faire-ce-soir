@@ -2,6 +2,7 @@
   "name": "que-faire-ce-soir",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
+  "keep_vars": true,
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application",
