@@ -56,6 +56,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         :items="search.pizzaListings"
         :loading="search.pizzaLoading"
         :error="search.pizzaError"
+        :limit="12"
         loading-text="Recherche des pizzerias…"
         empty-text="Aucune pizzeria trouvée près de vous."
       />

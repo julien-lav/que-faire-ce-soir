@@ -15,18 +15,21 @@ const props = defineProps<{
   error: string | null
   loadingText: string
   emptyText: string
+  // Show only this many items first, on every screen size (default: all on desktop, 10 on mobile)
+  limit?: number
 }>()
 
 const expanded = reactive(new Set<string>())
 const isMobile = useIsMobile()
-const showAll = ref(false)
+// How many more items "Charger plus" has revealed so far
+const loadedMore = ref(0)
 const selected = ref<ListingItem | null>(null)
 
-// On desktop every item is shown; on mobile the list is cut after the first 10
-const visibleItems = computed(() =>
-  isMobile.value && !showAll.value ? props.items.slice(0, MAX_ITEMS_MOBILE) : props.items,
-)
-const hiddenCount = computed(() => props.items.length - MAX_ITEMS_MOBILE)
+// Without `limit`, every item is shown on desktop and the list is cut after the first 10 on mobile
+const pageSize = computed(() => props.limit ?? (isMobile.value ? MAX_ITEMS_MOBILE : Infinity))
+const visibleCount = computed(() => pageSize.value + loadedMore.value)
+const visibleItems = computed(() => props.items.slice(0, visibleCount.value))
+const hiddenCount = computed(() => Math.max(0, props.items.length - visibleCount.value))
 
 const visiblePlaces = (item: ListingItem) =>
   expanded.has(item.id) ? item.places : item.places.slice(0, MAX_PLACES)
@@ -124,12 +127,12 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
     </ul>
 
     <button
-      v-if="isMobile && hiddenCount > 0"
+      v-if="hiddenCount > 0"
       type="button"
       class="mt-4 w-full rounded-full border-2 border-white/30 py-3 font-bold transition hover:bg-white/10"
-      @click="showAll = !showAll"
+      @click="loadedMore += pageSize"
     >
-      {{ showAll ? 'Voir moins' : `Voir plus (${hiddenCount})` }}
+      Charger plus ({{ hiddenCount }})
     </button>
 
     <ListingDetail v-if="selected" :item="selected" @close="selected = null" />

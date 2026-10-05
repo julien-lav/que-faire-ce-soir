@@ -1,5 +1,10 @@
+<script setup lang="ts">
+import BackToTop from './components/BackToTop.vue'
+</script>
+
 <template>
   <RouterView />
+  <BackToTop />
   <!-- Spacer so the fixed footer never hides the bottom of a page -->
   <div class="h-10" aria-hidden="true"></div>
   <footer

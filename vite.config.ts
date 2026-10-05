@@ -34,12 +34,12 @@ export default defineConfig(({ mode }) => {
         },
         // Fallback Overpass server, used when the main one is overloaded
         '/api/overpass-mirror': {
-          target: 'https://overpass.kumi.systems',
+          target: 'https://overpass.openstreetmap.fr',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/overpass-mirror/, '/api'),
         },
         '/api/overpass-mirror2': {
-          target: 'https://overpass.private.coffee',
+          target: 'https://lz4.overpass-api.de',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/overpass-mirror2/, '/api'),
         },
