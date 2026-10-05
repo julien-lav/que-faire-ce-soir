@@ -54,7 +54,11 @@ export default {
     for (const [k, v] of Object.entries(route.query?.(env) ?? {})) upstream.searchParams.set(k, v)
 
     const res = await fetch(upstream, {
-      headers: { Accept: 'application/json', ...route.headers?.(env) },
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'que-faire-ce-soir/1.0 (+https://que-faire-ce-soir.julien-laville.workers.dev)',
+        ...route.headers?.(env),
+      },
     })
     return new Response(res.body, {
       status: res.status,
