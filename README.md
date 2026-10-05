@@ -209,7 +209,9 @@ Chaque source est convertie vers la même forme (`ListingItem` → `ListingPlace
 
 ## Passage en production
 
-Les proxys ci-dessus n'existent qu'en développement. Pour déployer, il faut un équivalent (reverse proxy ou petit backend) qui garde les clés côté serveur et ajoute les en-têtes. Sans cela, les appels Ciné et Ticketmaster échoueront.
+Les proxys ci-dessus n'existent qu'en développement. En production, `functions/api/[[path]].ts` (Cloudflare Pages Functions) en est l'équivalent : mêmes chemins `/api/...`, clés lues côté serveur.
+
+Cloudflare Pages : build `npm run build`, dossier de sortie `dist`. Ajouter `CINEMA_API_KEY` et `TICKETMASTER_KEY` dans Settings → Variables and Secrets (environnement Production, et Preview si besoin), puis **redéployer** : un secret n'est pris en compte que par les déploiements suivants.
 
 Autres points à connaître :
 
