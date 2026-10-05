@@ -209,9 +209,9 @@ Chaque source est convertie vers la même forme (`ListingItem` → `ListingPlace
 
 ## Passage en production
 
-Les proxys ci-dessus n'existent qu'en développement. En production, `functions/api/[[path]].ts` (Cloudflare Pages Functions) en est l'équivalent : mêmes chemins `/api/...`, clés lues côté serveur.
+Les proxys ci-dessus n'existent qu'en développement. En production, `worker/index.ts` (Cloudflare Worker, configuré par `wrangler.jsonc`) en est l'équivalent : il répond aux chemins `/api/...` et les clés sont lues côté serveur, le reste étant servi comme fichiers statiques depuis `dist`.
 
-Cloudflare Pages : build `npm run build`, dossier de sortie `dist`. Ajouter `CINEMA_API_KEY` et `TICKETMASTER_KEY` dans Settings → Variables and Secrets (environnement Production, et Preview si besoin), puis **redéployer** : un secret n'est pris en compte que par les déploiements suivants.
+Cloudflare Workers : build `npm run build`, déploiement `npx wrangler deploy`. Ajouter `CINEMA_API_KEY` et `TICKETMASTER_KEY` dans Settings → Variables and Secrets du Worker (type Secret), puis redéployer.
 
 Autres points à connaître :
 

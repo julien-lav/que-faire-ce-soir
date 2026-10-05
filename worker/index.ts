@@ -1,4 +1,4 @@
-// Production equivalent of the dev proxies in vite.config.ts (Cloudflare Pages Functions).
+// Production equivalent of the dev proxies in vite.config.ts (Cloudflare Worker).
 // Secrets (CINEMA_API_KEY, TICKETMASTER_KEY) are read from the Pages environment, never shipped to the browser.
 interface Env {
   CINEMA_API_KEY?: string
@@ -40,23 +40,25 @@ const ROUTES: Record<string, Route> = {
   },
 }
 
-export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
-  if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 })
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url)
+    if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 })
 
-  const url = new URL(request.url)
-  const [, , name, ...tail] = url.pathname.split('/') // ['', 'api', name, ...]
-  const route = name ? ROUTES[name] : undefined
-  if (!route) return new Response('Not found', { status: 404 })
+    const [, , name, ...tail] = url.pathname.split('/') // ['', 'api', name, ...]
+    const route = name ? ROUTES[name] : undefined
+    if (!route) return new Response('Not found', { status: 404 })
 
-  const upstream = new URL(route.rewrite(tail.length ? `/${tail.join('/')}` : '') , route.target)
-  upstream.search = url.search
-  for (const [k, v] of Object.entries(route.query?.(env) ?? {})) upstream.searchParams.set(k, v)
+    const upstream = new URL(route.rewrite(tail.length ? `/${tail.join('/')}` : ''), route.target)
+    upstream.search = url.search
+    for (const [k, v] of Object.entries(route.query?.(env) ?? {})) upstream.searchParams.set(k, v)
 
-  const res = await fetch(upstream, {
-    headers: { Accept: 'application/json', ...route.headers?.(env) },
-  })
-  return new Response(res.body, {
-    status: res.status,
-    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
-  })
+    const res = await fetch(upstream, {
+      headers: { Accept: 'application/json', ...route.headers?.(env) },
+    })
+    return new Response(res.body, {
+      status: res.status,
+      headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
+    })
+  },
 }
