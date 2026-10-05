@@ -19,7 +19,7 @@ const ROUTES: Record<string, Route> = {
   cinema: {
     target: 'https://api.api-cinema.com',
     rewrite: (rest) => `/v1${rest}`,
-    headers: (env) => ({ Authorization: `Bearer ${env.CINEMA_API_KEY ?? ''}` }),
+    headers: (env) => ({ Authorization: `Bearer ${(env.CINEMA_API_KEY ?? '').trim()}` }),
   },
   musees: {
     target: 'https://tabular-api.data.gouv.fr',
@@ -36,7 +36,7 @@ const ROUTES: Record<string, Route> = {
   ticketmaster: {
     target: 'https://app.ticketmaster.com',
     rewrite: (rest) => `/discovery/v2${rest}`,
-    query: (env) => ({ apikey: env.TICKETMASTER_KEY ?? '' }),
+    query: (env) => ({ apikey: (env.TICKETMASTER_KEY ?? '').trim() }),
   },
 }
 
