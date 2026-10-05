@@ -13,6 +13,12 @@ interface Route {
   query?: (env: Env) => Record<string, string>
 }
 
+interface ExecutionContext {
+  waitUntil(promise: Promise<unknown>): void
+}
+
+const TIMEOUT_MS = 20_000
+
 const MUSEES = '/api/resources/5ccd6238-4fb0-4b2c-b14a-581909489320/data'
 
 const ROUTES: Record<string, Route> = {
@@ -42,7 +48,7 @@ const ROUTES: Record<string, Route> = {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
     if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 })
 
@@ -54,16 +60,38 @@ export default {
     upstream.search = url.search
     for (const [k, v] of Object.entries(route.query?.(env) ?? {})) upstream.searchParams.set(k, v)
 
-    const res = await fetch(upstream, {
+    // Public Overpass servers are slow and sometimes stall: cache good answers, and give up on a stalled
+    // one so the app can move on to another mirror
+    const cacheable = name === 'osm' || name.startsWith('overpass-')
+    const cache = (caches as unknown as { default: Cache }).default
+    const cacheKey = new Request(upstream.toString())
+    if (cacheable) {
+      const hit = await cache.match(cacheKey)
+      if (hit) return hit
+    }
+
+    let res: Response
+    try {
+      res = await fetch(upstream, {
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'que-faire-ce-soir/1.0 (+https://que-faire-ce-soir.julien-laville.workers.dev)',
+          ...route.headers?.(env),
+        },
+      })
+    } catch {
+      return new Response('Upstream timeout', { status: 504 })
+    }
+
+    const out = new Response(res.body, {
+      status: res.status,
       headers: {
-        Accept: 'application/json',
-        'User-Agent': 'que-faire-ce-soir/1.0 (+https://que-faire-ce-soir.julien-laville.workers.dev)',
-        ...route.headers?.(env),
+        'Content-Type': res.headers.get('Content-Type') ?? 'application/json',
+        ...(cacheable && res.ok ? { 'Cache-Control': 'public, max-age=600' } : {}),
       },
     })
-    return new Response(res.body, {
-      status: res.status,
-      headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
-    })
+    if (cacheable && res.ok) ctx.waitUntil(cache.put(cacheKey, out.clone()))
+    return out
   },
 }
