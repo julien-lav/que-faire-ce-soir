@@ -1,6 +1,6 @@
 # 🌙 Que faire ce soir ?
 
-Une petite app pour trouver quoi faire ce soir près de chez soi : une pizza, un film, un spectacle, un concert, du sport ou un musée. On choisit une heure et une ou plusieurs envies, l'app liste ce qui est disponible autour de soi, trié par distance.
+Une petite app pour trouver quoi faire ce soir près de chez soi : une pizza, un restaurant, un verre, un film, un spectacle, un concert, du sport ou un musée. On choisit une heure et une ou plusieurs envies, l'app liste ce qui est disponible autour de soi, trié par distance.
 
 🔗 **Site en ligne : https://que-faire-ce-soir.julien-laville.workers.dev/**
 
@@ -9,8 +9,8 @@ Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4
 ## Fonctionnalités
 
 - **Choix de l'heure** : de 8h à minuit. Le sélecteur affiche 7 heures à la fois (18h → minuit au départ) ; des flèches ‹ › permettent de remonter dans la journée et de revenir.
-- **Choix des envies** : plusieurs catégories possibles en même temps. Quatre blocs en vue (Pizza, Ciné, Spectacle, Concert), les autres (Sport, Musée…) sont sous « Plus de choix ».
-- **Lieu** : par défaut « Autour de moi » (géolocalisation du navigateur, avec repli sur Paris 11e si elle est refusée, ce qui est alors indiqué). Le bouton « Changer de lieu » ouvre une recherche avec suggestions (ville ou adresse en France) ; toutes les listes cherchent alors autour du lieu choisi. Un spinner s'affiche pendant le chargement de chaque liste.
+- **Choix des envies** : plusieurs catégories possibles en même temps. Quatre blocs en vue (Pizza, Ciné, Spectacle, Concert), les autres (Manger, Un verre, Sport, Musée, Jeux) sont sous « Plus de choix ».
+- **Lieu** : par défaut « Autour de moi » (géolocalisation du navigateur, cherchée dès l'ouverture de l'accueil). Si le navigateur ne trouve pas la position (refus, délai dépassé), l'app ne devine pas une ville : elle ouvre la recherche d'adresse avec un message, désactive les deux boutons de recherche et attend qu'une adresse soit choisie (ou un clic sur « Réessayer »). Le bouton « Changer de lieu » ouvre une recherche avec suggestions (ville ou adresse en France) ; toutes les listes cherchent alors autour du lieu choisi. Un spinner s'affiche pendant le chargement de chaque liste.
 - **Fenêtre horaire** : de l'heure choisie jusqu'à 3h du matin, calculée à l'heure de Paris quel que soit le fuseau du navigateur. Une heure déjà passée aujourd'hui démarre à maintenant.
 - **Favoris** : une courte liste écrite à la main dans `src/data/favorites.ts` (un nom et une zone, par exemple « I Briganti » dans le 14e). Un résultat qui correspond passe en premier, avec une ★ et un fond doré. Un favori n'apparaît que s'il fait partie des résultats (dans la zone cherchée, et ouvert si une heure est choisie).
 - **Cartes** : titre (limité à 2 lignes), pastilles de genre, lieux triés par distance (3 par résultat, puis « Voir plus »).
@@ -25,9 +25,11 @@ Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4
 | 🏃 Sport | [Équipements sportifs](https://equipements.sports.gouv.fr) (ministère des Sports) | non | non |
 | 🏛️ Musée | [Muséofile](https://www.data.gouv.fr/datasets/musees-de-france-base-museofile) (ministère de la Culture) + horaires [OpenStreetMap](https://www.openstreetmap.org) | si connus d'OSM | non |
 | 🍕 Pizza | pizzerias d'[OpenStreetMap](https://www.openstreetmap.org) | si connus d'OSM | non |
-| 🍝 Manger, 🍸 Sortir, 🎮 Jeux | pas encore | – | – |
+| 🍝 Manger | restaurants d'[OpenStreetMap](https://www.openstreetmap.org), hors pizzerias et burgers | si connus d'OSM | non |
+| 🍸 Un verre | bars et pubs d'[OpenStreetMap](https://www.openstreetmap.org) | si connus d'OSM | non |
+| 🎮 Jeux | pas encore | – | – |
 
-Les catégories pas encore disponibles sont affichées grisées avec la mention « Bientôt ».
+Les catégories pas encore disponibles sont affichées grisées avec la mention « Bientôt ». Un clic sur « Jeux » ouvre une pop-up « Bientôt disponible : location de consoles et manettes pour vos soirées ».
 
 ## Installation
 
@@ -120,7 +122,7 @@ Les commandes sont à lancer dans **PowerShell** (menu Démarrer → « PowerShe
 | Erreur de version de Node | Vérifier `node -v` (20.19+ ou 22.12+). Avec nvm : `nvm install --lts && nvm use --lts`. |
 | Ciné, spectacles ou concerts : erreur 401 | `.env.local` absent, mal nommé ou clé fausse ; redémarrer `npm run dev` après l'avoir créé. |
 | Le port 5173 est déjà utilisé | Vite choisit le port suivant et l'affiche dans le terminal ; utiliser l'adresse indiquée. |
-| Tester sur un téléphone du même réseau | `npm run dev -- --host`, puis ouvrir l'adresse « Network » affichée. Le navigateur refuse la géolocalisation hors `localhost` sans HTTPS : l'app retombe alors sur Paris 11e. |
+| Tester sur un téléphone du même réseau | `npm run dev -- --host`, puis ouvrir l'adresse « Network » affichée. Le navigateur refuse la géolocalisation hors `localhost` sans HTTPS : l'app demande alors une adresse. |
 
 ## Démarrage rapide
 
@@ -179,6 +181,10 @@ Ces données n'ont pas d'horaires : l'heure choisie n'est pas utilisée pour le 
 
 Les pizzerias sont les restaurants et fast-foods d'OpenStreetMap dont la cuisine (`cuisine`) contient « pizza », dans un rayon de 2 km. La recherche se fait en deux temps : la correspondance exacte `cuisine=pizza` (indexée, donc rapide) s'affiche d'abord, puis la recherche complète (qui ajoute par exemple « italian;pizza ») la remplace. Les réponses d'OpenStreetMap sont gardées 10 minutes dans `sessionStorage` (effacé à la fermeture de l'onglet) : recharger la page est instantané. Plus généralement, la recherche d'une catégorie démarre dès qu'on la coche sur la page des envies (et non au clic sur « GO ») : le temps que l'utilisateur finisse de choisir, les sources lentes ont déjà répondu. Chaque carte affiche des pastilles (Livraison, À emporter, Sur place, autres cuisines), la distance et les horaires du jour. La fiche détail ajoute le téléphone (« Appeler »), le site web et l'itinéraire. Comme pour les musées : les pizzerias confirmées ouvertes passent en premier, puis celles sans horaires renseignés, et celles que les horaires disent fermées sont masquées. Les données sont © contributeurs OpenStreetMap (ODbL), avec une couverture inégale (surtout pour le téléphone, la livraison et les horaires).
 
+### Manger et Un verre : restaurants et bars OpenStreetMap
+
+Même principe que les pizzerias (code commun dans `src/services/venues.ts`), dans un rayon de 1,5 km. « Manger » liste les `amenity=restaurant` nommés dont la cuisine n'est ni pizza ni burger (ces deux-là ont leur propre catégorie ou sont écartés), avec les pastilles de service et le type de cuisine. « Un verre » liste les `amenity=bar` et `amenity=pub` nommés, avec la pastille « Terrasse » quand elle est renseignée. Mêmes règles d'horaires que pour les pizzerias : ouverts confirmés d'abord, puis horaires inconnus, les fermés à l'heure choisie sont masqués.
+
 ### Musées : liste du ministère + horaires OpenStreetMap
 
 **La liste.** Muséofile (environ 1 200 « Musées de France »). L'ancienne API Opendatasoft de `data.culture.gouv.fr` ne répond plus, on passe donc par l'API tabulaire de data.gouv.fr. Les coordonnées y sont dans une seule colonne texte, donc la recherche par distance se fait en deux temps : `geo.api.gouv.fr` donne le département de l'utilisateur, on récupère ses musées, puis on calcule les distances dans le navigateur (rayon de 15 km). Un musée du département voisin peut manquer près d'une frontière.
@@ -201,7 +207,8 @@ src/
 ├─ components/     ListingList (liste, spinner, « Voir plus »), ListingDetail (fiche),
 │                  LocationPicker, TimeSelector (heures et flèches)
 ├─ stores/         search.ts : choix de l'utilisateur, position, chargement de chaque liste
-├─ services/       cinema, ticketmaster, sports, museums, pizza, geocoding (recherche de lieu),
+├─ services/       cinema, ticketmaster, sports, museums, pizza, restaurants, bars, venues (lieux OpenStreetMap communs),
+│                  geocoding (recherche de lieu),
 │                  overpass (OpenStreetMap + serveur de secours), openingHours (lecteur d'horaires),
 │                  placeHours (horaires d'une carte), timeWindow (fenêtre à l'heure de Paris),
 │                  listing (forme commune)
@@ -212,7 +219,7 @@ Chaque source est convertie vers la même forme (`ListingItem` → `ListingPlace
 
 ## Passage en production
 
-Les proxys ci-dessus n'existent qu'en développement. En production, `worker/index.ts` (Cloudflare Worker, configuré par `wrangler.jsonc`) en est l'équivalent : il répond aux chemins `/api/...`, lit les clés côté serveur, et le reste est servi comme fichiers statiques depuis `dist` (avec repli sur `index.html` pour le routeur Vue). Les appels Overpass (pizzas, horaires des musées) ne passent pas par le Worker en production : le navigateur les envoie directement aux serveurs Overpass (voir `src/services/overpass.ts`).
+Les proxys ci-dessus n'existent qu'en développement. En production, `worker/index.ts` (Cloudflare Worker, configuré par `wrangler.jsonc`) en est l'équivalent : il répond aux chemins `/api/...`, lit les clés côté serveur, et le reste est servi comme fichiers statiques depuis `dist` (avec repli sur `index.html` pour le routeur Vue). Les appels Overpass (pizzas, restaurants, bars, horaires des musées) ne passent pas par le Worker en production : le navigateur les envoie directement aux serveurs Overpass (voir `src/services/overpass.ts`).
 
 ### Déployer sur Cloudflare (Workers)
 
@@ -235,6 +242,6 @@ Autres points à connaître :
 
 - Ticketmaster : quota par défaut de 5000 appels par jour et 5 requêtes par seconde. Sa couverture est surtout forte hors de France, donc certaines listes peuvent être courtes.
 - La recherche par position de Ticketmaster (`latlong`) est marquée comme dépréciée dans sa documentation.
-- Le serveur Overpass public d'OpenStreetMap est à usage raisonnable et souvent surchargé : chaque requête est envoyée en même temps à plusieurs serveurs (`overpass.openstreetmap.fr`, `lz4.overpass-api.de`, le serveur principal et un miroir) et la première réponse l'emporte, car ils tombent tour à tour en surcharge. Pour un vrai trafic, prévoir un cache côté serveur ou une instance dédiée. S'il est indisponible, les musées s'affichent sans horaires, et la liste Pizza affiche une erreur.
+- Le serveur Overpass public d'OpenStreetMap est à usage raisonnable et souvent surchargé : chaque requête est envoyée en même temps à plusieurs serveurs (`overpass.openstreetmap.fr`, `lz4.overpass-api.de`, le serveur principal et un miroir) et la première réponse l'emporte, car ils tombent tour à tour en surcharge. Pour un vrai trafic, prévoir un cache côté serveur ou une instance dédiée. S'il est indisponible, les musées s'affichent sans horaires, et les listes Pizza, Manger et Un verre affichent une erreur.
 - L'app cible la France : les fenêtres horaires sont calculées à l'heure de Paris.
 - Ne mettez jamais une clé dans un fichier suivi par git ni dans une variable `VITE_*`.
