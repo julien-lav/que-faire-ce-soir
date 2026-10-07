@@ -1,7 +1,14 @@
 @import "tailwindcss";
 
-/* Same colour as the pages (bg-slate-950), so nothing white shows around them, e.g. under the footer */
+/* One background for every page, fixed so it doesn't stretch or repeat on long pages
+   (also keeps nothing white around the pages, e.g. under the footer) */
 html,
 body {
   background-color: var(--color-slate-950);
+  background-image:
+    radial-gradient(60rem 40rem at 15% -10%, rgb(217 70 239 / 0.28), transparent 60%),
+    radial-gradient(50rem 40rem at 90% 10%, rgb(251 146 60 / 0.2), transparent 60%),
+    radial-gradient(60rem 40rem at 50% 115%, rgb(79 70 229 / 0.28), transparent 60%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }

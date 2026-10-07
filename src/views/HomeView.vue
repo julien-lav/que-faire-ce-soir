@@ -20,7 +20,7 @@ function choose() {
 
 <template>
   <main
-    class="flex min-h-screen flex-col items-center justify-center gap-10 bg-slate-950 px-6 text-center text-white"
+    class="flex min-h-screen flex-col items-center justify-center gap-10 px-6 text-center text-white"
   >
     <h1 class="text-4xl font-extrabold tracking-wide sm:text-5xl">QUE FAIRE CE SOIR ?</h1>
 
@@ -35,18 +35,18 @@ function choose() {
       <button
         type="button"
         :disabled="search.hour === null"
-        class="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-400 px-8 py-4 text-xl font-bold shadow-lg transition enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
-        @click="surprise"
+        class="rounded-full bg-gradient-to-r from-cyan-400 to-indigo-500 px-8 py-4 text-xl font-bold shadow-lg transition enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+        @click="choose"
       >
-        ✨ SURPRENDS-MOI
+        🎯 JE CHOISIS MES ACTIVITÉS
       </button>
       <button
         type="button"
         :disabled="search.hour === null"
-        class="rounded-full border-2 border-white/30 px-8 py-4 text-xl font-bold transition enabled:hover:scale-105 enabled:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-        @click="choose"
+        class="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-400 px-8 py-4 text-xl font-bold shadow-lg transition enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+        @click="surprise"
       >
-        🎯 JE CHOISIS
+        ✨ SURPRENDS-MOI
       </button>
     </div>
   </main>

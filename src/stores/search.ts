@@ -11,6 +11,7 @@ import {
   groupByEvent,
   type TicketmasterSegment,
 } from '../services/ticketmaster'
+import { reverseCity } from '../services/geocoding'
 
 // Paris 11e, used when browser geolocation is unavailable or refused
 const DEFAULT_COORDS = { lat: 48.859, lng: 2.379 }
@@ -89,10 +90,23 @@ export const useSearchStore = defineStore('search', () => {
             fallback: false,
           }),
         () => resolve(fallback),
-        // Reuse the browser's last position (up to 10 min old) instead of waiting for a new fix
-        { timeout: 3000, maximumAge: 10 * 60_000 },
+        // Accept a position up to 1 min old, but give a real fix enough time to arrive
+        { timeout: 8000, maximumAge: 60_000 },
       )
     })
+  }
+
+  // "Autour de moi (Saint-Denis)": best effort, the plain label stays if the lookup fails
+  async function showCity({ lat, lng }: { lat: number; lng: number }) {
+    try {
+      const city = await reverseCity(lat, lng)
+      // Ignore a late answer once the user picked a place or the position changed
+      if (city && !place.value && location.value === GEOLOCATION_LABEL) {
+        location.value = `${GEOLOCATION_LABEL} (${city})`
+      }
+    } catch {
+      // Keep the plain label
+    }
   }
 
   // Shared so that loading several lists asks for the browser position only once
@@ -108,8 +122,14 @@ export const useSearchStore = defineStore('search', () => {
     locating ??= locate().then(({ coords: c, fallback }) => {
       coords.value = c
       // Say so when the results are not around the user after all
-      if (fallback) location.value = FALLBACK_LABEL
+      location.value = fallback ? FALLBACK_LABEL : GEOLOCATION_LABEL
+      if (!fallback) void showCity(c)
       console.info(`[perf] Géolocalisation : ${Math.round(performance.now() - began)} ms`)
+      if (fallback) {
+        // Don't keep a failed fix: the next search asks the browser again
+        locating = null
+        started.clear()
+      }
     })
     return locating
   }
@@ -209,6 +229,15 @@ export const useSearchStore = defineStore('search', () => {
     location.value = p ? p.label : GEOLOCATION_LABEL
     locating = null
     started.clear()
+  }
+
+  // Coming back to the app after a failed fix (or after moving): locate again
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && !place.value && location.value === FALLBACK_LABEL) {
+        setPlace(null)
+      }
+    })
   }
 
   function toggleCategory(id: CategoryId) {

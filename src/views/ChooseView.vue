@@ -14,12 +14,12 @@ const visibleCategories = computed(() =>
 
 <template>
   <main
-    class="flex min-h-screen flex-col items-center justify-center gap-8 bg-slate-950 px-6 text-center text-white"
+    class="flex min-h-screen flex-col items-center justify-center gap-8 px-6 text-center text-white"
   >
     <p class="text-white/70">
       {{ search.location }} · {{ search.hour !== null ? search.formatHour(search.hour) : '' }}
     </p>
-    <h1 class="text-3xl font-bold">Tu as envie de quoi ?</h1>
+    <h1 class="text-3xl font-bold">🎯 Je choisis mes activités</h1>
     <p class="-mt-4 text-sm text-white/50">Tu peux en choisir plusieurs</p>
 
     <div class="grid w-full max-w-md grid-cols-2 gap-4">

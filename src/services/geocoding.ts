@@ -25,3 +25,12 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
     lat: f.geometry.coordinates[1],
   }))
 }
+
+// Name of the town at a position (e.g. "Saint-Denis"), or null when there is none
+export async function reverseCity(lat: number, lng: number): Promise<string | null> {
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lng), limit: '1' })
+  const res = await fetch(`/api/adresse/reverse/?${params}`)
+  if (!res.ok) return null
+  const body: { features: { properties: { city?: string } }[] } = await res.json()
+  return body.features[0]?.properties.city ?? null
+}
