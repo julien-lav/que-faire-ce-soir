@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import LocationPicker from '../components/LocationPicker.vue'
 import TimeSelector from '../components/TimeSelector.vue'
@@ -7,13 +8,18 @@ import { useSearchStore } from '../stores/search'
 const search = useSearchStore()
 const router = useRouter()
 
+// Find the position now, so a failure is known (and an address asked) before any search starts
+onMounted(() => search.locateNow())
+
+const ready = () => search.hour !== null && search.locationStatus !== 'needs-address'
+
 function surprise() {
-  if (search.hour === null) return
+  if (!ready()) return
   router.push({ name: 'suggestion' })
 }
 
 function choose() {
-  if (search.hour === null) return
+  if (!ready()) return
   router.push({ name: 'choose' })
 }
 </script>
@@ -34,7 +40,7 @@ function choose() {
     <div class="flex flex-wrap items-center justify-center gap-4">
       <button
         type="button"
-        :disabled="search.hour === null"
+        :disabled="!ready()"
         class="rounded-full bg-gradient-to-r from-cyan-400 to-indigo-500 px-8 py-4 text-xl font-bold shadow-lg transition enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
         @click="choose"
       >
@@ -42,7 +48,7 @@ function choose() {
       </button>
       <button
         type="button"
-        :disabled="search.hour === null"
+        :disabled="!ready()"
         class="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-400 px-8 py-4 text-xl font-bold shadow-lg transition enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
         @click="surprise"
       >

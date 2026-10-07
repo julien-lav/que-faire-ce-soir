@@ -11,6 +11,8 @@ const hasConcert = computed(() => search.categories.includes('concert'))
 const hasSport = computed(() => search.categories.includes('sport'))
 const hasMuseum = computed(() => search.categories.includes('museum'))
 const hasPizza = computed(() => search.categories.includes('pizza'))
+const hasEat = computed(() => search.categories.includes('eat'))
+const hasOut = computed(() => search.categories.includes('out'))
 const listCount = computed(
   () =>
     [
@@ -20,6 +22,8 @@ const listCount = computed(
       hasConcert.value,
       hasSport.value,
       hasMuseum.value,
+      hasEat.value,
+      hasOut.value,
     ].filter(Boolean).length,
 )
 
@@ -31,6 +35,8 @@ const GRID_CLASSES: Record<number, string> = {
   4: 'md:max-w-7xl md:grid-cols-2 lg:grid-cols-4',
   5: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
   6: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-3',
+  7: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-4',
+  8: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-4',
 }
 
 // Searches may already be running (or done) since the categories were ticked
@@ -59,6 +65,26 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         :limit="12"
         loading-text="Recherche des pizzerias…"
         empty-text="Aucune pizzeria trouvée près de vous."
+      />
+      <ListingList
+        v-if="hasEat"
+        title="🍝 Restaurants près de vous"
+        :items="search.eatListings"
+        :loading="search.eatLoading"
+        :error="search.eatError"
+        :limit="12"
+        loading-text="Recherche des restaurants…"
+        empty-text="Aucun restaurant trouvé près de vous."
+      />
+      <ListingList
+        v-if="hasOut"
+        title="🍸 Bars près de vous"
+        :items="search.outListings"
+        :loading="search.outLoading"
+        :error="search.outError"
+        :limit="12"
+        loading-text="Recherche des bars…"
+        empty-text="Aucun bar trouvé près de vous."
       />
       <ListingList
         v-if="hasCinema"

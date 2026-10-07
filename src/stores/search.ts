@@ -5,6 +5,8 @@ import { withFavorites } from '../data/favorites'
 import type { ListingItem } from '../services/listing'
 import { fetchNearbyMuseums } from '../services/museums'
 import { fetchNearbyPizzerias } from '../services/pizza'
+import { fetchNearbyRestaurants } from '../services/restaurants'
+import { fetchNearbyBars } from '../services/bars'
 import { fetchNearbySports } from '../services/sports'
 import {
   fetchNearbyEvents,
@@ -13,12 +15,13 @@ import {
 } from '../services/ticketmaster'
 import { reverseCity } from '../services/geocoding'
 
-// Paris 11e, used when browser geolocation is unavailable or refused
-const DEFAULT_COORDS = { lat: 48.859, lng: 2.379 }
-
 // Shown when no place was typed: the position comes from the browser
 const GEOLOCATION_LABEL = 'Autour de moi'
-const FALLBACK_LABEL = 'Paris 11e (position indisponible)'
+const NOT_FOUND_LABEL = 'Position introuvable'
+
+// 'needs-address': the browser could not locate the user, searches wait for a typed address
+export type LocationStatus = 'idle' | 'locating' | 'ok' | 'needs-address'
+export type LocationError = 'denied' | 'unavailable' | 'timeout'
 
 export interface ChosenPlace {
   label: string
@@ -38,16 +41,16 @@ export const CATEGORIES = [
 
 export const MORE_CATEGORIES = [
   { id: 'eat', emoji: '🍝', label: 'Manger' },
-  { id: 'out', emoji: '🍸', label: 'Sortir' },
+  { id: 'out', emoji: '🍸', label: 'Un verre' },
   { id: 'sport', emoji: '🏃', label: 'Sport' },
   { id: 'museum', emoji: '🏛️', label: 'Musée' },
-  { id: 'games', emoji: '🎮', label: 'Jouer à Mario Kart / Bomberman' },
+  { id: 'games', emoji: '🎮', label: 'Jouer à Mario Kart/Bomberman/...' },
 ] as const
 
 export type CategoryId = ((typeof CATEGORIES)[number] | (typeof MORE_CATEGORIES)[number])['id']
 
 // Categories that actually return results; the others are shown greyed out
-const AVAILABLE_CATEGORIES: readonly CategoryId[] = ['cinema', 'show', 'concert', 'sport', 'museum', 'pizza']
+const AVAILABLE_CATEGORIES: readonly CategoryId[] = ['cinema', 'show', 'concert', 'sport', 'museum', 'pizza', 'eat', 'out']
 export const isAvailable = (id: CategoryId) => AVAILABLE_CATEGORIES.includes(id)
 
 export const useSearchStore = defineStore('search', () => {
@@ -57,7 +60,11 @@ export const useSearchStore = defineStore('search', () => {
   const hour = ref<number | null>(null)
   const categories = ref<CategoryId[]>([])
 
-  const coords = ref({ ...DEFAULT_COORDS })
+  const locationStatus = ref<LocationStatus>('idle')
+  const locationError = ref<LocationError | null>(null)
+
+  // Only meaningful once a position or a place is known: searches wait for it
+  const coords = ref({ lat: 0, lng: 0 })
   const cinemaListings = ref<ListingItem[]>([])
   const cinemaLoading = ref(false)
   const cinemaError = ref<string | null>(null)
@@ -76,20 +83,24 @@ export const useSearchStore = defineStore('search', () => {
   const pizzaListings = ref<ListingItem[]>([])
   const pizzaLoading = ref(false)
   const pizzaError = ref<string | null>(null)
+  const eatListings = ref<ListingItem[]>([])
+  const eatLoading = ref(false)
+  const eatError = ref<string | null>(null)
+  const outListings = ref<ListingItem[]>([])
+  const outLoading = ref(false)
+  const outError = ref<string | null>(null)
 
   const formatHour = (h: number) => `${String(h).padStart(2, '0')}h`
 
-  function locate(): Promise<{ coords: { lat: number; lng: number }; fallback: boolean }> {
-    const fallback = { coords: { ...DEFAULT_COORDS }, fallback: true }
+  function locate(): Promise<{ coords: { lat: number; lng: number } } | { error: LocationError }> {
     return new Promise((resolve) => {
-      if (!('geolocation' in navigator)) return resolve(fallback)
+      if (!('geolocation' in navigator)) return resolve({ error: 'unavailable' })
       navigator.geolocation.getCurrentPosition(
-        (p) =>
+        (p) => resolve({ coords: { lat: p.coords.latitude, lng: p.coords.longitude } }),
+        (e) =>
           resolve({
-            coords: { lat: p.coords.latitude, lng: p.coords.longitude },
-            fallback: false,
+            error: e.code === e.PERMISSION_DENIED ? 'denied' : e.code === e.TIMEOUT ? 'timeout' : 'unavailable',
           }),
-        () => resolve(fallback),
         // Accept a position up to 1 min old, but give a real fix enough time to arrive
         { timeout: 8000, maximumAge: 60_000 },
       )
@@ -109,6 +120,40 @@ export const useSearchStore = defineStore('search', () => {
     }
   }
 
+  // Wakes the searches waiting for an address (see `resolvePosition`)
+  let wake: (() => void) | null = null
+
+  // Finds where to search: the browser's position, or else an address typed by the user. When the
+  // browser can't tell, nothing is searched (no guessed city) until a place is picked.
+  async function resolvePosition(): Promise<void> {
+    const began = performance.now()
+    locationStatus.value = 'locating'
+    const result = await locate()
+    console.info(`[perf] Géolocalisation : ${Math.round(performance.now() - began)} ms`)
+
+    if ('coords' in result) {
+      coords.value = result.coords
+      locationStatus.value = 'ok'
+      locationError.value = null
+      location.value = GEOLOCATION_LABEL
+      void showCity(result.coords)
+      return
+    }
+
+    locationStatus.value = 'needs-address'
+    locationError.value = result.error
+    location.value = NOT_FOUND_LABEL
+    await new Promise<void>((resolve) => (wake = resolve))
+
+    if (place.value) {
+      coords.value = { lat: place.value.lat, lng: place.value.lng }
+      return
+    }
+    // "Autour de moi" was asked again: retry the browser
+    location.value = GEOLOCATION_LABEL
+    return resolvePosition()
+  }
+
   // Shared so that loading several lists asks for the browser position only once
   let locating: Promise<void> | null = null
   function ensureCoords() {
@@ -118,20 +163,13 @@ export const useSearchStore = defineStore('search', () => {
       return Promise.resolve()
     }
 
-    const began = performance.now()
-    locating ??= locate().then(({ coords: c, fallback }) => {
-      coords.value = c
-      // Say so when the results are not around the user after all
-      location.value = fallback ? FALLBACK_LABEL : GEOLOCATION_LABEL
-      if (!fallback) void showCity(c)
-      console.info(`[perf] Géolocalisation : ${Math.round(performance.now() - began)} ms`)
-      if (fallback) {
-        // Don't keep a failed fix: the next search asks the browser again
-        locating = null
-        started.clear()
-      }
-    })
+    locating ??= resolvePosition()
     return locating
+  }
+
+  // Starts looking for the user's position without waiting for a search to need it
+  function locateNow() {
+    if (!place.value && !locating) void ensureCoords()
   }
 
   async function runLoad(
@@ -190,6 +228,14 @@ export const useSearchStore = defineStore('search', () => {
     runLoad(pizzaListings, pizzaLoading, pizzaError, (onPartial) =>
       fetchNearbyPizzerias(coords.value.lat, coords.value.lng, hour.value, onPartial),
     )
+  const loadEat = () =>
+    runLoad(eatListings, eatLoading, eatError, () =>
+      fetchNearbyRestaurants(coords.value.lat, coords.value.lng, hour.value),
+    )
+  const loadOut = () =>
+    runLoad(outListings, outLoading, outError, () =>
+      fetchNearbyBars(coords.value.lat, coords.value.lng, hour.value),
+    )
   const loadMuseums = () =>
     runLoad(museumListings, museumLoading, museumError, (onPartial) =>
       fetchNearbyMuseums(coords.value.lat, coords.value.lng, hour.value, onPartial),
@@ -205,6 +251,8 @@ export const useSearchStore = defineStore('search', () => {
     sport: { load: loadSport, error: sportError },
     museum: { load: loadMuseums, error: museumError },
     pizza: { load: loadPizza, error: pizzaError },
+    eat: { load: loadEat, error: eatError },
+    out: { load: loadOut, error: outError },
   }
   const started = new Map<CategoryId, { hour: number | null; done: Promise<void> }>()
 
@@ -227,14 +275,25 @@ export const useSearchStore = defineStore('search', () => {
   function setPlace(p: ChosenPlace | null) {
     place.value = p
     location.value = p ? p.label : GEOLOCATION_LABEL
+
+    // Searches are waiting for an address (or a retry): let them carry on, nothing to restart
+    if (wake) {
+      const resume = wake
+      wake = null
+      if (p) locationStatus.value = 'ok'
+      resume()
+      return
+    }
+
+    locationStatus.value = p ? 'ok' : 'idle'
     locating = null
     started.clear()
   }
 
-  // Coming back to the app after a failed fix (or after moving): locate again
+  // Coming back to the app after a failed fix (e.g. permission just granted): locate again
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && !place.value && location.value === FALLBACK_LABEL) {
+      if (document.visibilityState === 'visible' && !place.value && locationStatus.value === 'needs-address') {
         setPlace(null)
       }
     })
@@ -253,6 +312,9 @@ export const useSearchStore = defineStore('search', () => {
 
   return {
     location,
+    locationStatus,
+    locationError,
+    locateNow,
     place,
     hour,
     categories,
@@ -275,6 +337,12 @@ export const useSearchStore = defineStore('search', () => {
     pizzaListings,
     pizzaLoading,
     pizzaError,
+    eatListings,
+    eatLoading,
+    eatError,
+    outListings,
+    outLoading,
+    outError,
     formatHour,
     toggleCategory,
     ensureLoaded,

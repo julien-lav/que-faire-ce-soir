@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { searchPlaces, type Place } from '../services/geocoding'
 import { useSearchStore } from '../stores/search'
 
@@ -31,6 +31,22 @@ async function edit() {
   await nextTick()
   input.value?.focus()
 }
+
+// The browser could not locate the user: an address is required to go on
+const needsAddress = computed(() => search.locationStatus === 'needs-address' && !search.place)
+const needsAddressHint = computed(() =>
+  search.locationError === 'denied'
+    ? 'Localisation refusée. Entrez une adresse, ou autorisez-la dans votre navigateur.'
+    : 'Impossible de vous localiser. Entrez une adresse pour continuer.',
+)
+
+watch(
+  needsAddress,
+  (needed) => {
+    if (needed && !editing.value) void edit()
+  },
+  { immediate: true },
+)
 
 function close() {
   cancelPending()
@@ -91,7 +107,10 @@ onBeforeUnmount(cancelPending)
 <template>
   <div class="flex w-full max-w-sm flex-col items-center gap-2">
     <template v-if="!editing">
-      <p class="text-xl">📍 {{ search.location }}</p>
+      <p v-if="search.locationStatus === 'locating'" role="status" class="text-xl text-white/70">
+        📍 Recherche de votre position…
+      </p>
+      <p v-else class="text-xl">📍 {{ search.location }}</p>
       <button
         type="button"
         class="rounded-lg border border-white/20 px-4 py-1 text-sm hover:bg-white/10"
@@ -141,6 +160,7 @@ onBeforeUnmount(cancelPending)
       <p v-else-if="query.trim().length >= MIN_CHARS" class="text-sm text-white/60">
         Aucun lieu trouvé.
       </p>
+      <p v-else-if="needsAddress" role="alert" class="text-sm text-amber-300">{{ needsAddressHint }}</p>
       <p v-else class="text-sm text-white/40">Tapez au moins {{ MIN_CHARS }} lettres.</p>
 
       <div class="flex gap-2">
@@ -149,9 +169,10 @@ onBeforeUnmount(cancelPending)
           class="rounded-lg border border-white/20 px-4 py-1 text-sm hover:bg-white/10"
           @click="pick(null)"
         >
-          📍 Autour de moi
+          {{ needsAddress ? '📍 Réessayer' : '📍 Autour de moi' }}
         </button>
         <button
+          v-if="!needsAddress"
           type="button"
           class="rounded-lg px-4 py-1 text-sm text-white/60 hover:bg-white/10"
           @click="close"
