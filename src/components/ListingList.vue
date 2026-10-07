@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import ListingDetail from './ListingDetail.vue'
 import { useIsMobile } from '../composables/useIsMobile'
 import type { ListingItem } from '../services/listing'
+import { useShortlistStore } from '../stores/shortlist'
 
 const MAX_PLACES = 3
 const MAX_ITEMS_MOBILE = 10
@@ -10,6 +11,8 @@ const MAX_TAGS = 3
 
 const props = defineProps<{
   title: string
+  // Name of the category in the copied message, e.g. "🎬 Ciné"
+  activity: string
   items: ListingItem[]
   loading: boolean
   error: string | null
@@ -19,6 +22,7 @@ const props = defineProps<{
   limit?: number
 }>()
 
+const shortlist = useShortlistStore()
 const expanded = reactive(new Set<string>())
 const isMobile = useIsMobile()
 // How many more items "Charger plus" has revealed so far
@@ -68,7 +72,7 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
         :key="item.id"
         role="button"
         tabindex="0"
-        class="cursor-pointer rounded-xl border p-4 transition hover:bg-white/10"
+        class="relative cursor-pointer rounded-xl border p-4 pb-12 transition hover:bg-white/10"
         :class="
           item.favorite
             ? 'border-amber-400/70 bg-amber-400/10 hover:border-amber-400'
@@ -122,6 +126,22 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
           {{
             expanded.has(item.id) ? 'Voir moins' : `Voir plus (${item.places.length - MAX_PLACES})`
           }}
+        </button>
+        <button
+          type="button"
+          class="absolute right-3 bottom-3 flex size-8 items-center justify-center rounded-full text-sm font-bold transition"
+          :class="
+            shortlist.has(activity, item)
+              ? 'bg-fuchsia-500 text-white'
+              : 'border border-white/30 bg-white/10 text-white/70 hover:bg-white/20'
+          "
+          :aria-pressed="shortlist.has(activity, item)"
+          :aria-label="shortlist.has(activity, item) ? 'Retirer de ma sélection' : 'Ajouter à ma sélection'"
+          :title="shortlist.has(activity, item) ? 'Retirer de ma sélection' : 'Ajouter à ma sélection'"
+          @click.stop="shortlist.toggle(activity, item)"
+          @keydown.enter.stop
+        >
+          {{ shortlist.has(activity, item) ? '✓' : '＋' }}
         </button>
       </li>
     </ul>

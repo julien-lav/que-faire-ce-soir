@@ -49,6 +49,12 @@ export const MORE_CATEGORIES = [
 
 export type CategoryId = ((typeof CATEGORIES)[number] | (typeof MORE_CATEGORIES)[number])['id']
 
+// "🎬 Ciné": how a category is named in the shortlist message
+export const activityLabel = (id: CategoryId) => {
+  const c = [...CATEGORIES, ...MORE_CATEGORIES].find((c) => c.id === id)!
+  return `${c.emoji} ${c.label}`
+}
+
 // Categories that actually return results; the others are shown greyed out
 const AVAILABLE_CATEGORIES: readonly CategoryId[] = ['cinema', 'show', 'concert', 'sport', 'museum', 'pizza', 'eat', 'out']
 export const isAvailable = (id: CategoryId) => AVAILABLE_CATEGORIES.includes(id)

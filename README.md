@@ -14,6 +14,7 @@ Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4
 - **Fenêtre horaire** : de l'heure choisie jusqu'à 3h du matin, calculée à l'heure de Paris quel que soit le fuseau du navigateur. Une heure déjà passée aujourd'hui démarre à maintenant.
 - **Favoris** : une courte liste écrite à la main dans `src/data/favorites.ts` (un nom et une zone, par exemple « I Briganti » dans le 14e). Un résultat qui correspond passe en premier, avec une ★ et un fond doré. Un favori n'apparaît que s'il fait partie des résultats (dans la zone cherchée, et ouvert si une heure est choisie).
 - **Cartes** : titre (limité à 2 lignes), pastilles de genre, lieux triés par distance (3 par résultat, puis « Voir plus »).
+- **Sélection à copier** : un badge ＋ en bas à droite de chaque carte l'ajoute à la sélection (✓ pour la retirer). Un bouton « 📋 Copier mes choix » apparaît au-dessus de la flèche ↑ et copie un message prêt à coller (heure, lieu, et pour chaque carte l'activité, tous les lieux et horaires). La sélection est vidée quand on change de lieu ou d'heure.
 - **Fiche détail** au clic sur une carte : image, genres, description, adresse, horaires, et les boutons « Réserver » (spectacles et concerts), « Appeler » et « Site officiel » (pizzerias, musées) et « Itinéraire ».
 - **Responsive** : une colonne par liste sur PC (jusqu'à 6), listes empilées sur téléphone avec les 10 premiers résultats puis « Voir plus ».
 
@@ -205,8 +206,9 @@ La couverture d'OSM est inégale. Les horaires sont © contributeurs OpenStreetM
 src/
 ├─ views/          HomeView (lieu et heure), ChooseView (envies), SuggestionView (résultats)
 ├─ components/     ListingList (liste, spinner, « Voir plus »), ListingDetail (fiche),
-│                  LocationPicker, TimeSelector (heures et flèches)
-├─ stores/         search.ts : choix de l'utilisateur, position, chargement de chaque liste
+│                  LocationPicker, TimeSelector (heures et flèches), ShortlistBar (bouton de copie)
+├─ stores/         search.ts : choix de l'utilisateur, position, chargement de chaque liste ;
+│                  shortlist.ts : cartes cochées et message à copier
 ├─ services/       cinema, ticketmaster, sports, museums, pizza, restaurants, bars, venues (lieux OpenStreetMap communs),
 │                  geocoding (recherche de lieu),
 │                  overpass (OpenStreetMap + serveur de secours), openingHours (lecteur d'horaires),

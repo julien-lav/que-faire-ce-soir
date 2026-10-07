@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import ListingList from '../components/ListingList.vue'
-import { useSearchStore } from '../stores/search'
+import ShortlistBar from '../components/ShortlistBar.vue'
+import { activityLabel, useSearchStore } from '../stores/search'
 
 const search = useSearchStore()
 
@@ -58,6 +59,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
     >
       <ListingList
         v-if="hasPizza"
+        :activity="activityLabel('pizza')"
         title="🍕 Pizzerias près de vous"
         :items="search.pizzaListings"
         :loading="search.pizzaLoading"
@@ -68,6 +70,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasEat"
+        :activity="activityLabel('eat')"
         title="🍝 Restaurants près de vous"
         :items="search.eatListings"
         :loading="search.eatLoading"
@@ -78,6 +81,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasOut"
+        :activity="activityLabel('out')"
         title="🍸 Bars près de vous"
         :items="search.outListings"
         :loading="search.outLoading"
@@ -88,6 +92,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasCinema"
+        :activity="activityLabel('cinema')"
         title="🎬 Cinéma près de vous"
         :items="search.cinemaListings"
         :loading="search.cinemaLoading"
@@ -97,6 +102,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasShow"
+        :activity="activityLabel('show')"
         title="🎭 Spectacles près de vous"
         :items="search.showListings"
         :loading="search.showLoading"
@@ -106,6 +112,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasConcert"
+        :activity="activityLabel('concert')"
         title="🎵 Concerts près de vous"
         :items="search.concertListings"
         :loading="search.concertLoading"
@@ -115,6 +122,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasSport"
+        :activity="activityLabel('sport')"
         title="🏃 Sport près de vous"
         :items="search.sportListings"
         :loading="search.sportLoading"
@@ -124,6 +132,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasMuseum"
+        :activity="activityLabel('museum')"
         title="🏛️ Musées près de vous"
         :items="search.museumListings"
         :loading="search.museumLoading"
@@ -135,5 +144,6 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
     <h1 v-else class="text-3xl font-bold">Ta sortie arrive bientôt…</h1>
 
     <RouterLink to="/" class="underline">← Retour</RouterLink>
+    <ShortlistBar />
   </main>
 </template>
