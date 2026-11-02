@@ -3,6 +3,7 @@ import { ref, type Ref } from 'vue'
 import { fetchNearbyShowtimes, groupByMovie } from '../services/cinema'
 import { withFavorites } from '../data/favorites'
 import type { ListingItem } from '../services/listing'
+import { defaultListingFilters } from '../services/listingFilters'
 import { fetchNearbyMuseums } from '../services/museums'
 import { fetchNearbyPizzerias } from '../services/pizza'
 import { fetchNearbyRestaurants } from '../services/restaurants'
@@ -65,6 +66,8 @@ export const useSearchStore = defineStore('search', () => {
   const place = ref<ChosenPlace | null>(null)
   const hour = ref<number | null>(null)
   const categories = ref<CategoryId[]>([])
+  // Refine already-loaded results; changing a filter never restarts an API search.
+  const filters = ref(defaultListingFilters())
 
   const locationStatus = ref<LocationStatus>('idle')
   const locationError = ref<LocationError | null>(null)
@@ -324,6 +327,7 @@ export const useSearchStore = defineStore('search', () => {
     place,
     hour,
     categories,
+    filters,
     coords,
     cinemaListings,
     cinemaLoading,

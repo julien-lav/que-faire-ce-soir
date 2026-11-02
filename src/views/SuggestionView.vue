@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import ListingList from '../components/ListingList.vue'
+import ListingFilters from '../components/ListingFilters.vue'
 import ShortlistBar from '../components/ShortlistBar.vue'
 import { activityLabel, useSearchStore } from '../stores/search'
+import { defaultListingFilters, filterListings, hasActiveFilters } from '../services/listingFilters'
+import type { MapGroup } from '../services/mapPlaces'
+
+const ResultsMap = defineAsyncComponent(() => import('../components/ResultsMap.vue'))
 
 const search = useSearchStore()
+const showFilters = ref(false)
+const showMap = ref(false)
 
 const hasCinema = computed(() => search.categories.includes('cinema'))
 const hasShow = computed(() => search.categories.includes('show'))
@@ -14,6 +21,37 @@ const hasMuseum = computed(() => search.categories.includes('museum'))
 const hasPizza = computed(() => search.categories.includes('pizza'))
 const hasEat = computed(() => search.categories.includes('eat'))
 const hasOut = computed(() => search.categories.includes('out'))
+const foodServices = computed(() => hasPizza.value || hasEat.value)
+const openingHours = computed(() => foodServices.value || hasOut.value || hasMuseum.value)
+const filtersActive = computed(() => hasActiveFilters(search.filters, {
+  foodServices: foodServices.value,
+  openingHours: openingHours.value && search.hour !== null,
+}))
+const venueCapabilities = computed(() => ({ openingHours: search.hour !== null }))
+const foodCapabilities = computed(() => ({ ...venueCapabilities.value, foodServices: true }))
+const foodFiltered = computed(() => hasActiveFilters(search.filters, foodCapabilities.value))
+const venueFiltered = computed(() => hasActiveFilters(search.filters, venueCapabilities.value))
+const distanceFiltered = computed(() => hasActiveFilters(search.filters))
+const pizza = computed(() => filterListings(search.pizzaListings, search.filters, foodCapabilities.value))
+const eat = computed(() => filterListings(search.eatListings, search.filters, foodCapabilities.value))
+const out = computed(() => filterListings(search.outListings, search.filters, venueCapabilities.value))
+const museums = computed(() => filterListings(search.museumListings, search.filters, venueCapabilities.value))
+const cinema = computed(() => filterListings(search.cinemaListings, search.filters))
+const shows = computed(() => filterListings(search.showListings, search.filters))
+const concerts = computed(() => filterListings(search.concertListings, search.filters))
+const sports = computed(() => filterListings(search.sportListings, search.filters))
+const resetFilters = () => { search.filters = defaultListingFilters() }
+const mapGroups = computed<MapGroup[]>(() => [
+  { id: 'pizza', label: activityLabel('pizza'), items: pizza.value, loading: search.pizzaLoading },
+  { id: 'eat', label: activityLabel('eat'), items: eat.value, loading: search.eatLoading },
+  { id: 'out', label: activityLabel('out'), items: out.value, loading: search.outLoading },
+  { id: 'cinema', label: activityLabel('cinema'), items: cinema.value, loading: search.cinemaLoading },
+  { id: 'show', label: activityLabel('show'), items: shows.value, loading: search.showLoading },
+  { id: 'concert', label: activityLabel('concert'), items: concerts.value, loading: search.concertLoading },
+  { id: 'sport', label: activityLabel('sport'), items: sports.value, loading: search.sportLoading },
+  { id: 'museum', label: activityLabel('museum'), items: museums.value, loading: search.museumLoading },
+].filter((group) => search.categories.some((category) => category === group.id)))
+const mapCenter = computed(() => search.locationStatus === 'ok' ? search.coords : null)
 const listCount = computed(
   () =>
     [
@@ -52,6 +90,48 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       {{ search.location }} · {{ search.hour !== null ? search.formatHour(search.hour) : '' }}
     </p>
 
+    <div v-if="listCount > 0" class="w-full max-w-md text-left md:max-w-3xl">
+      <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+        <button
+          type="button"
+          :aria-expanded="showFilters"
+          aria-controls="listing-filters-panel"
+          class="flex min-w-0 flex-wrap items-center justify-center gap-2 rounded-full border border-white/25 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400 sm:justify-start sm:px-4"
+          @click="showFilters = !showFilters"
+        >
+          {{ showFilters ? 'Masquer les filtres' : 'Afficher les filtres' }}
+          <span v-if="filtersActive" class="rounded-full bg-fuchsia-500/20 px-2 py-0.5 text-xs text-fuchsia-200">Filtres actifs</span>
+          <span aria-hidden="true">{{ showFilters ? '▴' : '▾' }}</span>
+        </button>
+        <button
+          type="button"
+          :aria-expanded="showMap"
+          aria-controls="listing-map-panel"
+          class="flex min-w-0 items-center justify-center gap-2 rounded-full border border-white/25 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400 sm:justify-start sm:px-4"
+          @click="showMap = !showMap"
+        >
+          <span aria-hidden="true">🗺️</span>
+          <span>{{ showMap ? 'Masquer la carte' : 'Afficher la carte' }}</span>
+        </button>
+      </div>
+      <ListingFilters
+        v-show="showFilters"
+        id="listing-filters-panel"
+        v-model="search.filters"
+        class="mt-3"
+        :food-services="foodServices"
+        :opening-hours="openingHours"
+        :hour="search.hour"
+      />
+    </div>
+
+    <div v-if="listCount > 0" v-show="showMap" id="listing-map-panel" class="w-full max-w-6xl">
+      <Suspense v-if="showMap">
+        <ResultsMap :groups="mapGroups" :center="mapCenter" />
+        <template #fallback><p role="status" class="py-6 text-white/60">Chargement de la carte…</p></template>
+      </Suspense>
+    </div>
+
     <div
       v-if="listCount > 0"
       class="grid w-full max-w-md grid-cols-1 items-start gap-8"
@@ -61,7 +141,11 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         v-if="hasPizza"
         :activity="activityLabel('pizza')"
         title="🍕 Pizzerias près de vous"
-        :items="search.pizzaListings"
+        favorite-category="pizza"
+        :items="pizza"
+        :filtered="foodFiltered"
+        :total-count="search.pizzaListings.length"
+        @reset-filters="resetFilters"
         :loading="search.pizzaLoading"
         :error="search.pizzaError"
         :limit="12"
@@ -72,7 +156,11 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         v-if="hasEat"
         :activity="activityLabel('eat')"
         title="🍝 Restaurants près de vous"
-        :items="search.eatListings"
+        favorite-category="eat"
+        :items="eat"
+        :filtered="foodFiltered"
+        :total-count="search.eatListings.length"
+        @reset-filters="resetFilters"
         :loading="search.eatLoading"
         :error="search.eatError"
         :limit="12"
@@ -83,7 +171,11 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         v-if="hasOut"
         :activity="activityLabel('out')"
         title="🍸 Bars près de vous"
-        :items="search.outListings"
+        favorite-category="out"
+        :items="out"
+        :filtered="venueFiltered"
+        :total-count="search.outListings.length"
+        @reset-filters="resetFilters"
         :loading="search.outLoading"
         :error="search.outError"
         :limit="12"
@@ -94,7 +186,11 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         v-if="hasCinema"
         :activity="activityLabel('cinema')"
         title="🎬 Cinéma près de vous"
-        :items="search.cinemaListings"
+        favorite-category="cinema"
+        :items="cinema"
+        :filtered="distanceFiltered"
+        :total-count="search.cinemaListings.length"
+        @reset-filters="resetFilters"
         :loading="search.cinemaLoading"
         :error="search.cinemaError"
         loading-text="Recherche des séances…"
@@ -104,7 +200,11 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         v-if="hasShow"
         :activity="activityLabel('show')"
         title="🎭 Spectacles près de vous"
-        :items="search.showListings"
+        favorite-category="show"
+        :items="shows"
+        :filtered="distanceFiltered"
+        :total-count="search.showListings.length"
+        @reset-filters="resetFilters"
         :loading="search.showLoading"
         :error="search.showError"
         loading-text="Recherche des spectacles…"
@@ -114,7 +214,11 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         v-if="hasConcert"
         :activity="activityLabel('concert')"
         title="🎵 Concerts près de vous"
-        :items="search.concertListings"
+        favorite-category="concert"
+        :items="concerts"
+        :filtered="distanceFiltered"
+        :total-count="search.concertListings.length"
+        @reset-filters="resetFilters"
         :loading="search.concertLoading"
         :error="search.concertError"
         loading-text="Recherche des concerts…"
@@ -124,7 +228,11 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         v-if="hasSport"
         :activity="activityLabel('sport')"
         title="🏃 Sport près de vous"
-        :items="search.sportListings"
+        favorite-category="sport"
+        :items="sports"
+        :filtered="distanceFiltered"
+        :total-count="search.sportListings.length"
+        @reset-filters="resetFilters"
         :loading="search.sportLoading"
         :error="search.sportError"
         loading-text="Recherche des équipements sportifs…"
@@ -134,7 +242,11 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         v-if="hasMuseum"
         :activity="activityLabel('museum')"
         title="🏛️ Musées près de vous"
-        :items="search.museumListings"
+        favorite-category="museum"
+        :items="museums"
+        :filtered="venueFiltered"
+        :total-count="search.museumListings.length"
+        @reset-filters="resetFilters"
         :loading="search.museumLoading"
         :error="search.museumError"
         loading-text="Recherche des musées…"

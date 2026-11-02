@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import ListingDetail from './ListingDetail.vue'
 import VenueRating from './VenueRating.vue'
+import FavoriteButton from './FavoriteButton.vue'
+import type { FavoriteCategory } from '../services/personalFavorites'
 import { useIsMobile } from '../composables/useIsMobile'
 import type { ListingItem } from '../services/listing'
 import { useShortlistStore } from '../stores/shortlist'
@@ -19,9 +21,13 @@ const props = defineProps<{
   error: string | null
   loadingText: string
   emptyText: string
+  filtered?: boolean
+  totalCount?: number
+  favoriteCategory?: FavoriteCategory
   // Show only this many items first, on every screen size (default: all on desktop, 10 on mobile)
   limit?: number
 }>()
+const emit = defineEmits<{ resetFilters: [] }>()
 
 const shortlist = useShortlistStore()
 const expanded = reactive(new Set<string>())
@@ -29,6 +35,13 @@ const isMobile = useIsMobile()
 // How many more items "Charger plus" has revealed so far
 const loadedMore = ref(0)
 const selected = ref<ListingItem | null>(null)
+
+// A new filtered set starts at page one, including when more results arrive.
+watch(() => props.items, () => {
+  loadedMore.value = 0
+  expanded.clear()
+  if (selected.value) selected.value = props.items.find((item) => item.id === selected.value?.id) ?? null
+})
 
 // Without `limit`, every item is shown on desktop and the list is cut after the first 10 on mobile
 const pageSize = computed(() => props.limit ?? (isMobile.value ? MAX_ITEMS_MOBILE : Infinity))
@@ -50,6 +63,9 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
 <template>
   <section class="w-full text-left">
     <h2 class="mb-4 text-xl font-bold">{{ title }}</h2>
+    <p v-if="filtered && totalCount" role="status" class="-mt-2 mb-3 text-sm text-white/60">
+      {{ items.length }} résultat{{ items.length > 1 ? 's' : '' }} sur {{ totalCount }}
+    </p>
 
     <!-- Results already received stay visible while the rest (e.g. opening hours) still loads -->
     <p
@@ -65,6 +81,16 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
       {{ items.length ? 'Mise à jour…' : loadingText }}
     </p>
     <p v-else-if="error" class="text-red-400">{{ error }}</p>
+    <div v-else-if="!items.length && filtered && totalCount" class="text-white/70">
+      <p>Aucun résultat ne correspond à tes filtres.</p>
+      <button
+        type="button"
+        class="mt-3 rounded-full border border-fuchsia-400/50 px-4 py-2 text-sm text-fuchsia-200 transition hover:bg-fuchsia-500/10"
+        @click="emit('resetFilters')"
+      >
+        Réinitialiser les filtres
+      </button>
+    </div>
     <p v-else-if="!items.length" class="text-white/70">{{ emptyText }}</p>
 
     <ul v-if="items.length" class="flex flex-col gap-3">
@@ -73,7 +99,7 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
         :key="item.id"
         role="button"
         tabindex="0"
-        class="relative cursor-pointer rounded-xl border p-4 pb-12 transition hover:bg-white/10"
+        class="relative cursor-pointer rounded-xl border p-4 pb-16 transition hover:bg-white/10"
         :class="
           item.favorite
             ? 'border-amber-400/70 bg-amber-400/10 hover:border-amber-400'
@@ -85,7 +111,7 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
         <h3 class="flex items-center justify-between gap-2 font-semibold">
           <!-- Long names without spaces (e.g. "Karaté/Kobudo/Ninjutsu/...") are cut after 2 lines -->
           <span class="line-clamp-2 min-w-0 break-words" :title="item.title">
-            <span v-if="item.favorite" class="text-amber-400" role="img" aria-label="Favori">★</span>
+            <span v-if="item.favorite" class="text-amber-400" role="img" aria-label="Adresse recommandée">★</span>
             {{ item.title }}
           </span>
           <span class="shrink-0 text-white/40" aria-hidden="true">›</span>
@@ -129,22 +155,31 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
             expanded.has(item.id) ? 'Voir moins' : `Voir plus (${item.places.length - MAX_PLACES})`
           }}
         </button>
-        <button
-          type="button"
-          class="absolute right-3 bottom-3 flex size-8 items-center justify-center rounded-full text-sm font-bold transition"
-          :class="
-            shortlist.has(activity, item)
-              ? 'bg-fuchsia-500 text-white'
-              : 'border border-white/30 bg-white/10 text-white/70 hover:bg-white/20'
-          "
-          :aria-pressed="shortlist.has(activity, item)"
-          :aria-label="shortlist.has(activity, item) ? 'Retirer de ma sélection' : 'Ajouter à ma sélection'"
-          :title="shortlist.has(activity, item) ? 'Retirer de ma sélection' : 'Ajouter à ma sélection'"
-          @click.stop="shortlist.toggle(activity, item)"
-          @keydown.enter.stop
-        >
-          {{ shortlist.has(activity, item) ? '✓' : '＋' }}
-        </button>
+        <div role="group" :aria-label="`Actions pour ${item.title}`" class="absolute right-3 bottom-3 flex items-center gap-2">
+          <FavoriteButton
+            v-if="favoriteCategory"
+            :category="favoriteCategory"
+            :item="item"
+            :place="item.places.length === 1 ? item.places[0] : undefined"
+            @choose-place="selected = item"
+          />
+          <button
+            type="button"
+            class="flex size-9 shrink-0 items-center justify-center rounded-full text-lg font-bold transition"
+            :class="
+              shortlist.has(activity, item)
+                ? 'bg-fuchsia-500 text-white'
+                : 'border border-white/30 bg-white/10 text-white/70 hover:bg-white/20'
+            "
+            :aria-pressed="shortlist.has(activity, item)"
+            :aria-label="shortlist.has(activity, item) ? 'Retirer de ma sélection' : 'Ajouter à ma sélection'"
+            :title="shortlist.has(activity, item) ? 'Retirer de ma sélection' : 'Ajouter à ma sélection'"
+            @click.stop="shortlist.toggle(activity, item)"
+            @keydown.enter.stop
+          >
+            {{ shortlist.has(activity, item) ? '✓' : '＋' }}
+          </button>
+        </div>
       </li>
     </ul>
 
@@ -157,6 +192,6 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
       Charger plus ({{ hiddenCount }})
     </button>
 
-    <ListingDetail v-if="selected" :item="selected" @close="selected = null" />
+    <ListingDetail v-if="selected" :item="selected" :favorite-category="favoriteCategory" @close="selected = null" />
   </section>
 </template>

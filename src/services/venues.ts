@@ -1,4 +1,4 @@
-import { haversineKm, sortByDistance, type ListingItem, type ListingPlace } from './listing'
+import { haversineKm, sortByDistance, type ListingItem, type ListingPlace, type VenueService } from './listing'
 import { bbox, overpass, positionOf } from './overpass'
 import { hoursInfo } from './placeHours'
 
@@ -52,12 +52,20 @@ const firstOf = (value?: string) => value?.split(';')[0]?.trim() || undefined
 const toUrl = (url?: string) =>
   url ? (/^https?:\/\//.test(url) ? url : `https://${url}`) : undefined
 
+export function venueServices(t: Record<string, string>): VenueService[] {
+  const services: VenueService[] = []
+  if (t.delivery === 'yes') services.push('delivery')
+  if (t.takeaway === 'yes' || t.takeaway === 'only') services.push('takeaway')
+  if (t.takeaway !== 'only' && t.dine_in !== 'no' &&
+    (t.dine_in === 'yes' || t.amenity === 'restaurant')) services.push('dineIn')
+  return services
+}
+
 export function serviceTags(t: Record<string, string>): string[] {
-  const tags: string[] = []
-  if (t.delivery === 'yes') tags.push('Livraison')
-  if (t.takeaway === 'yes' || t.takeaway === 'only') tags.push('À emporter')
-  if (t.amenity === 'restaurant' && t.takeaway !== 'only') tags.push('Sur place')
-  return tags
+  const labels: Record<VenueService, string> = {
+    delivery: 'Livraison', takeaway: 'À emporter', dineIn: 'Sur place',
+  }
+  return venueServices(t).map((service) => labels[service])
 }
 
 export function cuisineTags(t: Record<string, string>, skip: string[] = []): string[] {
@@ -115,6 +123,7 @@ export async function searchVenues(
           lng: pos.lng,
           phone: firstOf(t.phone ?? t['contact:phone']),
           reviewable: kind.reviews,
+          services: venueServices(t),
           websiteUrl: toUrl(firstOf(t.website ?? t['contact:website'])),
           times: [],
           detailIcon: kind.icon,

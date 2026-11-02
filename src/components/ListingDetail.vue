@@ -2,9 +2,11 @@
 import { onMounted, onUnmounted } from 'vue'
 import type { ListingItem, ListingPlace } from '../services/listing'
 import VenueRating from './VenueRating.vue'
+import FavoriteButton from './FavoriteButton.vue'
+import type { FavoriteCategory } from '../services/personalFavorites'
 import { googleMapsUrl } from '../services/ratings'
 
-defineProps<{ item: ListingItem }>()
+defineProps<{ item: ListingItem; favoriteCategory?: FavoriteCategory }>()
 const emit = defineEmits<{ close: [] }>()
 
 function onKeydown(e: KeyboardEvent) {
@@ -53,7 +55,7 @@ function directionsUrl(p: ListingPlace) {
         <div class="flex flex-col gap-4 p-5">
           <div class="flex items-start justify-between gap-4">
             <h2 class="min-w-0 break-words text-2xl font-bold">
-              <span v-if="item.favorite" class="text-amber-400" role="img" aria-label="Favori">★</span>
+              <span v-if="item.favorite" class="text-amber-400" role="img" aria-label="Adresse recommandée">★</span>
               {{ item.title }}
             </h2>
             <button
@@ -79,10 +81,13 @@ function directionsUrl(p: ListingPlace) {
           <p v-if="item.description" class="text-sm text-white/80">{{ item.description }}</p>
 
           <div v-for="p in item.places" :key="p.id" class="rounded-xl border border-white/15 bg-white/5 p-3 text-sm">
-            <p class="font-semibold">
-              📍 {{ p.name }}
-              <template v-if="p.distanceKm !== undefined"> — {{ formatDistance(p.distanceKm) }}</template>
-            </p>
+            <div class="flex items-start gap-2">
+              <p class="min-w-0 flex-1 font-semibold">
+                📍 {{ p.name }}
+                <template v-if="p.distanceKm !== undefined"> — {{ formatDistance(p.distanceKm) }}</template>
+              </p>
+              <FavoriteButton v-if="favoriteCategory" :category="favoriteCategory" :item="item" :place="p" />
+            </div>
             <p v-if="p.address" class="text-white/60">{{ p.address }}</p>
             <VenueRating v-if="p.reviewable" :name="item.title" :place="p" />
             <p v-if="p.times.length" class="mt-1 text-white/80">🕐 {{ p.times.join(' · ') }}</p>

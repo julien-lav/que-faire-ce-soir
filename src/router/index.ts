@@ -9,5 +9,6 @@ export default createRouter({
     { path: '/', name: 'home', component: HomeView },
     { path: '/suggestion', name: 'suggestion', component: SuggestionView },
     { path: '/choix', name: 'choose', component: ChooseView },
+    { path: '/favoris', name: 'favorites', component: () => import('../views/FavoritesView.vue') },
   ],
 })

@@ -1,3 +1,5 @@
+export type VenueService = 'delivery' | 'takeaway' | 'dineIn'
+
 // Shape shared by every "near you" list (movies, shows, ...): an item is played at several places.
 export interface ListingPlace {
   id: string
@@ -16,6 +18,7 @@ export interface ListingPlace {
   phone?: string
   // Restaurants and pizzerias can show public reviews and a Google Maps search link.
   reviewable?: boolean
+  services?: VenueService[]
   // Opening-hours info for places without showtimes (museums)
   status?: { label: string; open: boolean }
   schedule?: string[]
