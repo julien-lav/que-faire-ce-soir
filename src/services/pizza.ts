@@ -9,6 +9,7 @@ const pizzeria = (filter: string): VenueKind => ({
   radiusKm: 2,
   fallbackName: 'Pizzeria',
   icon: '🍕',
+  reviews: true,
   tags: (t) => [...serviceTags(t), ...cuisineTags(t, ['pizza'])],
 })
 

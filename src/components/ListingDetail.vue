@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 import type { ListingItem, ListingPlace } from '../services/listing'
+import VenueRating from './VenueRating.vue'
+import { googleMapsUrl } from '../services/ratings'
 
 defineProps<{ item: ListingItem }>()
 const emit = defineEmits<{ close: [] }>()
@@ -82,6 +84,7 @@ function directionsUrl(p: ListingPlace) {
               <template v-if="p.distanceKm !== undefined"> — {{ formatDistance(p.distanceKm) }}</template>
             </p>
             <p v-if="p.address" class="text-white/60">{{ p.address }}</p>
+            <VenueRating v-if="p.reviewable" :name="item.title" :place="p" />
             <p v-if="p.times.length" class="mt-1 text-white/80">🕐 {{ p.times.join(' · ') }}</p>
             <p
               v-if="p.status"
@@ -99,6 +102,15 @@ function directionsUrl(p: ListingPlace) {
             <p v-else-if="p.detail" class="mt-1 text-white/80">{{ p.detailIcon ?? '🏟️' }} {{ p.detail }}</p>
 
             <div class="mt-3 flex flex-wrap gap-2">
+              <a
+                v-if="p.reviewable"
+                :href="googleMapsUrl(item.title, p)"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="rounded-full border border-white/30 px-4 py-2 font-bold hover:bg-white/10"
+              >
+                Consulter sur Google Maps ↗
+              </a>
               <a
                 v-if="p.bookingUrl"
                 :href="p.bookingUrl"

@@ -13,6 +13,7 @@ export interface VenueKind {
   // Card name when the place has no street address
   fallbackName: string
   icon: string
+  reviews?: boolean
   tags: (t: Record<string, string>) => string[]
 }
 
@@ -113,6 +114,7 @@ export async function searchVenues(
           lat: pos.lat,
           lng: pos.lng,
           phone: firstOf(t.phone ?? t['contact:phone']),
+          reviewable: kind.reviews,
           websiteUrl: toUrl(firstOf(t.website ?? t['contact:website'])),
           times: [],
           detailIcon: kind.icon,

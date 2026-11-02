@@ -14,6 +14,7 @@ Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4
 - **Fenêtre horaire** : de l'heure choisie jusqu'à 3h du matin, calculée à l'heure de Paris quel que soit le fuseau du navigateur. Une heure déjà passée aujourd'hui démarre à maintenant.
 - **Favoris** : une courte liste écrite à la main dans `src/data/favorites.ts` (un nom et une zone, par exemple « I Briganti » dans le 14e). Un résultat qui correspond passe en premier, avec une ★ et un fond doré. Un favori n'apparaît que s'il fait partie des résultats (dans la zone cherchée, et ouvert si une heure est choisie).
 - **Cartes** : titre (limité à 2 lignes), pastilles de genre, lieux triés par distance (3 par résultat, puis « Voir plus »).
+- **Notes des restaurants et pizzerias** : moyenne sur 5 et nombre d'avis [Mangrove](https://mangrove.reviews/) lorsqu'ils sont disponibles, sur les cartes et les fiches. Un lien « Consulter sur Google Maps » est proposé sur la fiche, même sans note. Aucune clé API ni facturation Google n'est nécessaire.
 - **Sélection à copier** : un badge ＋ en bas à droite de chaque carte l'ajoute à la sélection (✓ pour la retirer). Un bouton « 📋 Copier mes choix » apparaît au-dessus de la flèche ↑ et copie un message prêt à coller (heure, lieu, et pour chaque carte l'activité, tous les lieux et horaires). La sélection est vidée quand on change de lieu ou d'heure.
 - **Fiche détail** au clic sur une carte : image, genres, description, adresse, horaires, et les boutons « Réserver » (spectacles et concerts), « Appeler » et « Site officiel » (pizzerias, musées) et « Itinéraire ».
 - **Responsive** : une colonne par liste sur PC (jusqu'à 6), listes empilées sur téléphone avec les 10 premiers résultats puis « Voir plus ».
@@ -140,7 +141,7 @@ CINEMA_API_KEY=ac_live_...
 TICKETMASTER_KEY=...
 ```
 
-Sans clé, le sport et les musées fonctionnent (données ouvertes) mais le ciné, les spectacles et les concerts affichent une erreur 401.
+Sans clé, les pizzerias, restaurants, bars, le sport et les musées fonctionnent (données ouvertes), ainsi que les notes Mangrove et les liens Google Maps. Seuls le ciné, les spectacles et les concerts nécessitent les clés ci-dessus ; sans elles, ces catégories affichent une erreur 401.
 
 Les clés n'ont **pas** de préfixe `VITE_` : elles restent côté serveur de dev et n'arrivent jamais dans le code envoyé au navigateur. `.env.local` est ignoré par git (règle `*.local`). Redémarrez `npm run dev` après toute modification.
 
@@ -164,6 +165,7 @@ Le navigateur n'appelle jamais directement les API. Il appelle `/api/...` et le 
 | `/api/musees/*` | API tabulaire de data.gouv.fr (ressource Muséofile) | aucune |
 | `/api/geo/*` | `https://geo.api.gouv.fr/*` | aucune |
 | `/api/adresse/*` | `https://api-adresse.data.gouv.fr/*` (recherche de lieu) | aucune |
+| `/api/mangrove/*` | `https://api.mangrove.reviews/*` (avis publics) | aucune |
 | `/api/osm/*` | `https://overpass-api.de/api/*` | aucune |
 | `/api/overpass-mirror/*` | `https://overpass.openstreetmap.fr/api/*` (serveur de secours) | aucune |
 | `/api/overpass-mirror2/*` | `https://lz4.overpass-api.de/api/*` (deuxième secours) | aucune |
@@ -185,6 +187,16 @@ Les pizzerias sont les restaurants et fast-foods d'OpenStreetMap dont la cuisine
 ### Manger et Un verre : restaurants et bars OpenStreetMap
 
 Même principe que les pizzerias (code commun dans `src/services/venues.ts`), dans un rayon de 1,5 km. « Manger » liste les `amenity=restaurant` nommés dont la cuisine n'est ni pizza ni burger (ces deux-là ont leur propre catégorie ou sont écartés), avec les pastilles de service et le type de cuisine. « Un verre » liste les `amenity=bar` et `amenity=pub` nommés, avec la pastille « Terrasse » quand elle est renseignée. Mêmes règles d'horaires que pour les pizzerias : ouverts confirmés d'abord, puis horaires inconnus, les fermés à l'heure choisie sont masqués.
+
+### Notes : Mangrove / Open Reviews
+
+**Aucune clé API ni configuration supplémentaire n'est nécessaire** pour les notes Mangrove et le lien « Consulter sur Google Maps ». Il n'y a aucune variable à ajouter dans `.env.local`, aucun compte Google Cloud à créer et aucune facturation Google à activer : le lien ouvre simplement une recherche Google Maps, sans utiliser l'API Places.
+
+Les restaurants et pizzerias affichés demandent leurs avis en arrière-plan, via le proxy `/api/mangrove/reviews`. Une requête par zone de 0,05° (avec une marge aux frontières) est partagée entre les cartes et les fiches ; les résultats restent dix minutes en mémoire. Un échec est conservé une minute pour éviter les appels répétés. La liste n'attend pas les notes et reste utilisable si l'API échoue ou dépasse huit secondes.
+
+Un avis doit se situer à moins de 100 m du lieu et correspondre à son identifiant OSM (sans tenir compte de la version) ou, si cet identifiant manque, exactement à son nom normalisé. Les avis sans identité de lieu fiable sont ignorés. Seule la dernière note de chaque contributeur identifié est retenue. La moyenne arithmétique des notes de 0 à 100 est convertie sur 5, avec le nombre d'avis et un lien d'attribution Mangrove ; ce calcul est distinct de l'indicateur probabiliste « quality » de Mangrove. Si la réponse atteint la limite de 1 000 avis par zone, aucune moyenne partielle n'est affichée.
+
+Les données sont issues de la communauté [Mangrove / Open Reviews, sous licence CC BY 4.0](https://open-reviews.net/technology/). La couverture est limitée et varie selon les lieux : l'absence de note n'est pas une note de zéro. Le lien Google Maps cherche le nom et l'adresse (ou les coordonnées) du restaurant, sans appeler l'API Places.
 
 ### Musées : liste du ministère + horaires OpenStreetMap
 

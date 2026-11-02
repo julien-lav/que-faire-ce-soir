@@ -10,6 +10,11 @@ export default defineConfig(({ mode }) => {
     plugins: [vue(), tailwindcss()],
     server: {
       proxy: {
+        '/api/mangrove': {
+          target: 'https://api.mangrove.reviews',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/mangrove/, ''),
+        },
         '/api/cinema': {
           target: 'https://api.api-cinema.com',
           changeOrigin: true,

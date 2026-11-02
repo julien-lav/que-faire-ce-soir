@@ -22,6 +22,7 @@ const TIMEOUT_MS = 20_000
 const MUSEES = '/api/resources/5ccd6238-4fb0-4b2c-b14a-581909489320/data'
 
 const ROUTES: Record<string, Route> = {
+  mangrove: { target: 'https://api.mangrove.reviews', rewrite: (rest) => rest },
   cinema: {
     target: 'https://api.api-cinema.com',
     rewrite: (rest) => `/v1${rest}`,

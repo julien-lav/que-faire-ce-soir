@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import ListingDetail from './ListingDetail.vue'
+import VenueRating from './VenueRating.vue'
 import { useIsMobile } from '../composables/useIsMobile'
 import type { ListingItem } from '../services/listing'
 import { useShortlistStore } from '../stores/shortlist'
@@ -99,6 +100,7 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
           </li>
         </ul>
         <div v-for="p in visiblePlaces(item)" :key="p.id" class="mt-2 text-sm">
+          <VenueRating v-if="p.reviewable" :name="item.title" :place="p" />
           <p class="text-white/80">
             📍 {{ p.name }}
             <template v-if="p.distanceKm !== undefined">

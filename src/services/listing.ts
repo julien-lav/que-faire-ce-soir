@@ -14,6 +14,8 @@ export interface ListingPlace {
   bookingUrl?: string
   websiteUrl?: string
   phone?: string
+  // Restaurants and pizzerias can show public reviews and a Google Maps search link.
+  reviewable?: boolean
   // Opening-hours info for places without showtimes (museums)
   status?: { label: string; open: boolean }
   schedule?: string[]

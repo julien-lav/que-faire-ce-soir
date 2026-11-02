@@ -8,6 +8,7 @@ const restaurant: VenueKind = {
   radiusKm: 1.5,
   fallbackName: 'Restaurant',
   icon: '🍽️',
+  reviews: true,
   tags: (t) => [...serviceTags(t), ...cuisineTags(t)],
 }
 
