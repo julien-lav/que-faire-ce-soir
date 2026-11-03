@@ -12,3 +12,12 @@ body {
   background-attachment: fixed;
   background-repeat: no-repeat;
 }
+
+/* Reserve room for the navigation and fixed footer, including short landscape views. */
+.page-shell {
+  width: 100%;
+  min-width: 0;
+  min-height: calc(100vh - 6rem);
+  min-height: calc(100svh - 6rem);
+  overflow-wrap: anywhere;
+}

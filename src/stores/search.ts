@@ -238,12 +238,12 @@ export const useSearchStore = defineStore('search', () => {
       fetchNearbyPizzerias(coords.value.lat, coords.value.lng, hour.value, onPartial),
     )
   const loadEat = () =>
-    runLoad(eatListings, eatLoading, eatError, () =>
-      fetchNearbyRestaurants(coords.value.lat, coords.value.lng, hour.value),
+    runLoad(eatListings, eatLoading, eatError, (onPartial) =>
+      fetchNearbyRestaurants(coords.value.lat, coords.value.lng, hour.value, onPartial),
     )
   const loadOut = () =>
-    runLoad(outListings, outLoading, outError, () =>
-      fetchNearbyBars(coords.value.lat, coords.value.lng, hour.value),
+    runLoad(outListings, outLoading, outError, (onPartial) =>
+      fetchNearbyBars(coords.value.lat, coords.value.lng, hour.value, onPartial),
     )
   const loadMuseums = () =>
     runLoad(museumListings, museumLoading, museumError, (onPartial) =>

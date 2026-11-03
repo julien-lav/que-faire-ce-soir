@@ -94,6 +94,10 @@ watch(query, (text) => {
 function move(step: number) {
   if (!suggestions.value.length) return
   active.value = (active.value + step + suggestions.value.length) % suggestions.value.length
+  void nextTick(() => {
+    input.value?.parentElement?.querySelector('[role="option"][aria-selected="true"]')
+      ?.scrollIntoView({ block: 'nearest' })
+  })
 }
 
 function confirm() {
@@ -105,7 +109,7 @@ onBeforeUnmount(cancelPending)
 </script>
 
 <template>
-  <div class="flex w-full max-w-sm flex-col items-center gap-2">
+  <div class="flex min-w-0 w-full max-w-sm flex-col items-center gap-2">
     <template v-if="!editing">
       <p v-if="search.locationStatus === 'locating'" role="status" class="text-xl text-white/70">
         📍 Recherche de votre position…
@@ -130,7 +134,7 @@ onBeforeUnmount(cancelPending)
         aria-label="Lieu"
         role="combobox"
         :aria-expanded="suggestions.length > 0"
-        class="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-center text-white outline-none placeholder:text-white/40 focus:border-fuchsia-500"
+        class="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-base text-center text-white outline-none placeholder:text-white/40 focus:border-fuchsia-500"
         @keydown.down.prevent="move(1)"
         @keydown.up.prevent="move(-1)"
         @keydown.enter.prevent="confirm"
@@ -140,7 +144,7 @@ onBeforeUnmount(cancelPending)
       <ul
         v-if="suggestions.length"
         role="listbox"
-        class="w-full overflow-hidden rounded-lg border border-white/20 bg-slate-900 text-left"
+        class="max-h-[min(15rem,40dvh)] w-full overflow-y-auto overscroll-contain rounded-lg border border-white/20 bg-slate-900 text-left"
       >
         <li v-for="(s, i) in suggestions" :key="`${s.label}-${s.lat}-${s.lng}`" role="option" :aria-selected="i === active">
           <button

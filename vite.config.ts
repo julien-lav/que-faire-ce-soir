@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/api\/overpass-mirror/, '/api'),
         },
         '/api/overpass-mirror2': {
-          target: 'https://lz4.overpass-api.de',
+          target: 'https://overpass.private.coffee',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/overpass-mirror2/, '/api'),
         },

@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import ListingList from '../components/ListingList.vue'
 import ListingFilters from '../components/ListingFilters.vue'
 import ShortlistBar from '../components/ShortlistBar.vue'
+import { useShortlistStore } from '../stores/shortlist'
 import { activityLabel, useSearchStore } from '../stores/search'
 import { defaultListingFilters, filterListings, hasActiveFilters } from '../services/listingFilters'
 import type { MapGroup } from '../services/mapPlaces'
@@ -10,6 +11,7 @@ import type { MapGroup } from '../services/mapPlaces'
 const ResultsMap = defineAsyncComponent(() => import('../components/ResultsMap.vue'))
 
 const search = useSearchStore()
+const shortlist = useShortlistStore()
 const showFilters = ref(false)
 const showMap = ref(false)
 
@@ -70,12 +72,12 @@ const listCount = computed(
 const GRID_CLASSES: Record<number, string> = {
   1: 'md:max-w-md md:grid-cols-1',
   2: 'md:max-w-3xl md:grid-cols-2',
-  3: 'md:max-w-6xl md:grid-cols-3',
-  4: 'md:max-w-7xl md:grid-cols-2 lg:grid-cols-4',
-  5: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
-  6: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-3',
-  7: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-4',
-  8: 'md:max-w-[90rem] md:grid-cols-2 lg:grid-cols-4',
+  3: 'md:max-w-6xl md:grid-cols-2 xl:grid-cols-3',
+  4: 'md:max-w-7xl md:grid-cols-2 xl:grid-cols-4',
+  5: 'md:max-w-[90rem] md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5',
+  6: 'md:max-w-[90rem] md:grid-cols-2 xl:grid-cols-3',
+  7: 'md:max-w-[90rem] md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4',
+  8: 'md:max-w-[90rem] md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4',
 }
 
 // Searches may already be running (or done) since the categories were ticked
@@ -84,7 +86,8 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
 
 <template>
   <main
-    class="flex min-h-screen flex-col items-center justify-center gap-6 px-6 py-10 text-center text-white"
+    :class="shortlist.count > 0 ? 'pb-44' : 'pb-8 sm:pb-10'"
+    class="page-shell flex flex-col items-center justify-center gap-6 px-4 pt-8 sm:px-6 sm:pt-10 text-center text-white"
   >
     <p class="text-white/70">
       {{ search.location }} · {{ search.hour !== null ? search.formatHour(search.hour) : '' }}
@@ -184,6 +187,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasCinema"
+        searchable
         :activity="activityLabel('cinema')"
         title="🎬 Cinéma près de vous"
         favorite-category="cinema"
@@ -198,6 +202,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasShow"
+        searchable
         :activity="activityLabel('show')"
         title="🎭 Spectacles près de vous"
         favorite-category="show"
@@ -212,6 +217,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasConcert"
+        searchable
         :activity="activityLabel('concert')"
         title="🎵 Concerts près de vous"
         favorite-category="concert"

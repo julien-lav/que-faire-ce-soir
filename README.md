@@ -15,6 +15,7 @@ Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4
 - **Adresses recommandées** : une courte liste écrite à la main dans `src/data/favorites.ts` (un nom et une zone, par exemple « I Briganti » dans le 14e). Un résultat qui correspond passe en premier, avec une ★ et un fond doré. Une adresse recommandée n'apparaît que si elle fait partie des résultats (dans la zone cherchée, et ouverte si une heure est choisie).
 - **Favoris personnels ❤️** : le cœur et le bouton ＋ sont alignés sur une même ligne en bas à droite des cartes. Le cœur permet d’enregistrer ou de retirer le lieu en un clic ; lorsqu’une carte regroupe plusieurs lieux, il ouvre la fiche pour choisir lesquels enregistrer. Pour le cinéma, les spectacles et les concerts, c'est le cinéma ou la salle qui est conservé, avec son nom et son adresse. « Mes favoris », en haut à droite juste avant l’icône GitHub sur toutes les pages, ouvre `/favoris` : toutes les adresses enregistrées restent consultables, même hors de la recherche et des filtres actuels. Les coordonnées, contacts et descriptions des lieux sont sauvegardés dans le `localStorage` du navigateur, sans compte ni API supplémentaire. Les programmes, liens de réservation, horaires quotidiens et états d'ouverture ne sont pas conservés ; les distances sont recalculées depuis le lieu de recherche lorsqu'il est connu. Les cœurs se synchronisent entre onglets du même navigateur. Les favoris persistent après fermeture, mais restent propres au navigateur et disparaissent si ses données de site sont effacées. Si l'enregistrement est bloqué, un message indique que les favoris restent disponibles pour la visite en cours.
 - **Cartes** : titre (limité à 2 lignes), pastilles de genre, lieux triés par distance (3 par résultat, puis « Voir plus »).
+- **Recherche par titre** : une loupe après les titres Cinéma, Spectacles et Concerts ouvre un champ de recherche propre à chaque colonne. Les cartes déjà chargées sont filtrées immédiatement sur leur titre, sans tenir compte des majuscules ni des accents et sans appel API. La recherche inclut les cartes au-delà de « Charger plus ». Vider le champ ou refermer avec la loupe (ou Échap) réaffiche la liste.
 - **Filtres des résultats** : masqués par défaut, ils s'ouvrent avec « Afficher les filtres » et se replient avec « Masquer les filtres ». La mention « Filtres actifs » reste visible lorsqu'un filtre s'applique, même si le panneau est replié. Distance maximale pour toutes les activités ; « Ouverts à l'heure choisie » pour les pizzerias, restaurants, bars et musées ; service au choix (Sur place, À emporter, Livraison) pour les pizzerias et restaurants. Les filtres se combinent et agissent immédiatement sur les lieux déjà trouvés, sans nouvel appel API ni élargissement du rayon initial. Les horaires ou services inconnus sont exclus quand le filtre correspondant est actif. Un compteur et un bouton de réinitialisation permettent de retrouver tous les résultats. Les filtres restent sélectionnés pendant la navigation, jusqu'à leur réinitialisation ou au rechargement de la page.
 - **Notes des restaurants et pizzerias** : moyenne sur 5 et nombre d'avis [Mangrove](https://mangrove.reviews/) lorsqu'ils sont disponibles, sur les cartes et les fiches. Un lien « Consulter sur Google Maps » est proposé sur la fiche, même sans note. Aucune clé API ni facturation Google n'est nécessaire.
 - **Carte facultative** : « Afficher la carte », à côté d'« Afficher les filtres », ouvre une carte interactive des résultats filtrés de toutes les activités sélectionnées. Un repère peut regrouper plusieurs sorties à la même position ; un clic permet d'ouvrir leur fiche. Le point bleu indique le lieu de recherche et « Recentrer » cadre les résultats. Les lieux sans coordonnées restent dans les listes. Leaflet et les tuiles OpenStreetMap se chargent uniquement à l'ouverture de la carte, sans clé API ; « Masquer la carte » la referme. Les tuiles sont chargées directement depuis `tile.openstreetmap.org` avec l'attribution visible, selon la [politique d'utilisation OSM](https://operations.osmfoundation.org/policies/tiles/).
@@ -35,6 +36,14 @@ Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4
 | 🎮 Jeux | pas encore | – | – |
 
 Les catégories pas encore disponibles sont affichées grisées avec la mention « Bientôt ». Un clic sur « Jeux » ouvre une pop-up « Bientôt disponible : location de consoles et manettes pour vos soirées ».
+
+## Affichage responsive
+
+L’en-tête garde son espace au-dessus des pages. Les horaires et les activités s’adaptent aux petits écrans ; les résultats restent sur deux colonnes sur tablette avant de passer à davantage de colonnes sur grand écran. Les textes longs reviennent à la ligne et les étiquettes trop longues des cartes sont abrégées (texte complet dans la fiche).
+
+La carte adapte sa hauteur à l’écran, y compris en paysage. Les fiches et les suggestions d’adresses peuvent défiler ; la sélection à copier réserve de la place en bas des résultats et des favoris.
+
+Pour vérifier une modification visuelle, parcourir l’accueil, les activités dépliées, les résultats, les filtres, la carte, une fiche et les favoris à **320 × 568, 375 × 667, 390 × 844, 768 × 1024, 1024 × 768, 1440 × 900 et 844 × 390 px**. Inclure des noms et adresses longs et une sélection à copier ; vérifier l’absence de défilement horizontal et l’accès aux boutons du bas. Ces formats ont été contrôlés dans Chrome avec émulation ; un essai sur de vrais appareils reste complémentaire.
 
 ## Installation
 
@@ -153,12 +162,13 @@ Les clés n'ont **pas** de préfixe `VITE_` : elles restent côté serveur de de
 | Commande | Rôle |
 |---|---|
 | `npm run dev` | serveur de développement avec proxys d'API |
+| `npm test` | tests du chargement progressif, du cache et des pannes Overpass (réseau simulé) |
 | `npm run build` | vérification des types (`vue-tsc`) puis build de production |
 | `npm run preview` | prévisualisation du build |
 
 ## Comment ça marche
 
-Le navigateur n'appelle jamais directement les API. Il appelle `/api/...` et le serveur de dev Vite (`vite.config.ts`) redirige, en ajoutant la clé quand il y en a une :
+En développement, le navigateur appelle `/api/...` et Vite (`vite.config.ts`) redirige, en ajoutant la clé quand il y en a une. En production, les requêtes Overpass vont directement aux instances publiques ; les autres API passent par le Worker :
 
 | Chemin local | Destination | Authentification |
 |---|---|---|
@@ -171,7 +181,7 @@ Le navigateur n'appelle jamais directement les API. Il appelle `/api/...` et le 
 | `/api/mangrove/*` | `https://api.mangrove.reviews/*` (avis publics) | aucune |
 | `/api/osm/*` | `https://overpass-api.de/api/*` | aucune |
 | `/api/overpass-mirror/*` | `https://overpass.openstreetmap.fr/api/*` (serveur de secours) | aucune |
-| `/api/overpass-mirror2/*` | `https://lz4.overpass-api.de/api/*` (deuxième secours) | aucune |
+| `/api/overpass-mirror2/*` | `https://overpass.private.coffee/api/*` (secours utilisé pour Overpass) | aucune |
 
 ### Sport : trois jeux de données croisés
 
@@ -185,7 +195,11 @@ Ces données n'ont pas d'horaires : l'heure choisie n'est pas utilisée pour le 
 
 ### Pizza : pizzerias OpenStreetMap
 
-Les pizzerias sont les restaurants et fast-foods d'OpenStreetMap dont la cuisine (`cuisine`) contient « pizza », dans un rayon de 2 km. La recherche se fait en deux temps : la correspondance exacte `cuisine=pizza` (indexée, donc rapide) s'affiche d'abord, puis la recherche complète (qui ajoute par exemple « italian;pizza ») la remplace. Les réponses d'OpenStreetMap sont gardées 10 minutes dans `sessionStorage` (effacé à la fermeture de l'onglet) : recharger la page est instantané. Plus généralement, la recherche d'une catégorie démarre dès qu'on la coche sur la page des envies (et non au clic sur « GO ») : le temps que l'utilisateur finisse de choisir, les sources lentes ont déjà répondu. Chaque carte affiche des pastilles (Livraison, À emporter, Sur place, autres cuisines), la distance et les horaires du jour. La fiche détail ajoute le téléphone (« Appeler »), le site web et l'itinéraire. Comme pour les musées : les pizzerias confirmées ouvertes passent en premier, puis celles sans horaires renseignés, et celles que les horaires disent fermées sont masquées. Les données sont © contributeurs OpenStreetMap (ODbL), avec une couverture inégale (surtout pour le téléphone, la livraison et les horaires).
+Les pizzerias sont les restaurants et fast-foods d'OpenStreetMap dont la cuisine (`cuisine`) contient « pizza », dans un rayon de 2 km. Pizza, restaurants et bars partagent désormais les mêmes requêtes : les lieux nommés (`restaurant`, `fast_food`, `bar`, `pub`) sont récupérés ensemble et classés côté application. Une première recherche dans un rayon d’environ **400 m** affiche les adresses proches, puis une seconde couvre **2 km** (les restaurants et bars restent filtrés à 1,5 km). Les premières cartes restent utilisables pendant la « Recherche complémentaire… ». Un échec de la première passe n’empêche pas la seconde ; si l’élargissement échoue, les premières adresses restent affichées avec un avertissement indiquant que la liste est incomplète.
+
+Les requêtes identiques en cours sont mutualisées. Les réponses complètes sont conservées **10 minutes** en mémoire et dans `localStorage`, avec leurs données OSM brutes pour recalculer les horaires selon l’heure choisie. Une réponse de moins de **7 jours** peut être affichée immédiatement pendant une actualisation, avec la pastille « Données en cache » ; si l’API est indisponible, elle reste visible avec un avertissement. Ce cache ne garantit pas les horaires actuels. Il est limité à 24 requêtes ; les favoris ne sont pas concernés. Si le stockage est désactivé ou plein, l’application continue avec le cache mémoire. Sans résultat ni cache, une panne de tous les serveurs peut encore empêcher tout affichage.
+
+Plus généralement, la recherche d'une catégorie démarre dès qu'on la coche sur la page des envies (et non au clic sur « GO ») : le temps que l'utilisateur finisse de choisir, les sources lentes ont déjà répondu. Chaque carte affiche des pastilles (Livraison, À emporter, Sur place, autres cuisines), la distance et les horaires du jour. La fiche détail ajoute le téléphone (« Appeler »), le site web et l'itinéraire. Comme pour les musées : les pizzerias confirmées ouvertes passent en premier, puis celles sans horaires renseignés, et celles que les horaires disent fermées sont masquées. Les données sont © contributeurs OpenStreetMap (ODbL), avec une couverture inégale (surtout pour le téléphone, la livraison et les horaires).
 
 ### Manger et Un verre : restaurants et bars OpenStreetMap
 
@@ -259,6 +273,6 @@ Autres points à connaître :
 
 - Ticketmaster : quota par défaut de 5000 appels par jour et 5 requêtes par seconde. Sa couverture est surtout forte hors de France, donc certaines listes peuvent être courtes.
 - La recherche par position de Ticketmaster (`latlong`) est marquée comme dépréciée dans sa documentation.
-- Le serveur Overpass public d'OpenStreetMap est à usage raisonnable et souvent surchargé : chaque requête est envoyée en même temps à plusieurs serveurs (`overpass.openstreetmap.fr`, `lz4.overpass-api.de`, le serveur principal et un miroir) et la première réponse l'emporte, car ils tombent tour à tour en surcharge. Pour un vrai trafic, prévoir un cache côté serveur ou une instance dédiée. S'il est indisponible, les musées s'affichent sans horaires, et les listes Pizza, Manger et Un verre affichent une erreur.
+- Les serveurs publics Overpass d’OpenStreetMap sont à usage raisonnable et souvent surchargés. Une requête part vers `overpass-api.de` ; un secours indépendant (`overpass.private.coffee`) démarre après une seconde, ou dès l’échec du premier. La première réponse complète gagne et l’autre est annulée. Les recherches de lieux ont une attente maximale de 6 secondes pour la petite zone, puis 12 secondes pour la zone complète (20 secondes par défaut pour les autres usages). Les erreurs ne déclenchent plus trois tentatives automatiques sur chaque miroir. Une réponse HTTP 200 contenant une erreur Overpass n’est pas mise en cache. Pour un vrai trafic, prévoir un cache côté serveur ou une instance dédiée. Si Overpass est indisponible, les musées s’affichent sans horaires ; Pizza, Manger et Un verre conservent les premières adresses ou celles en cache, sinon affichent une erreur.
 - L'app cible la France : les fenêtres horaires sont calculées à l'heure de Paris.
 - Ne mettez jamais une clé dans un fichier suivi par git ni dans une variable `VITE_*`.

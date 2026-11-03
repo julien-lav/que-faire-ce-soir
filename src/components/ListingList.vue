@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, useId, watch } from 'vue'
 import ListingDetail from './ListingDetail.vue'
 import VenueRating from './VenueRating.vue'
 import FavoriteButton from './FavoriteButton.vue'
@@ -24,6 +24,7 @@ const props = defineProps<{
   filtered?: boolean
   totalCount?: number
   favoriteCategory?: FavoriteCategory
+  searchable?: boolean
   // Show only this many items first, on every screen size (default: all on desktop, 10 on mobile)
   limit?: number
 }>()
@@ -35,9 +36,27 @@ const isMobile = useIsMobile()
 // How many more items "Charger plus" has revealed so far
 const loadedMore = ref(0)
 const selected = ref<ListingItem | null>(null)
+const searchOpen = ref(false)
+const query = ref('')
+const searchInput = ref<HTMLInputElement | null>(null)
+const searchToggle = ref<HTMLButtonElement | null>(null)
+const searchId = useId()
+const normalizeTitle = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('fr').trim()
+const normalizedQuery = computed(() => props.searchable ? normalizeTitle(query.value) : '')
+const matchingItems = computed(() => normalizedQuery.value
+  ? props.items.filter((item) => normalizeTitle(item.title).includes(normalizedQuery.value))
+  : props.items)
+
+async function toggleSearch() {
+  searchOpen.value = !searchOpen.value
+  if (!searchOpen.value) query.value = ''
+  await nextTick()
+  if (searchOpen.value) searchInput.value?.focus()
+  else searchToggle.value?.focus()
+}
 
 // A new filtered set starts at page one, including when more results arrive.
-watch(() => props.items, () => {
+watch([() => props.items, normalizedQuery], () => {
   loadedMore.value = 0
   expanded.clear()
   if (selected.value) selected.value = props.items.find((item) => item.id === selected.value?.id) ?? null
@@ -46,8 +65,8 @@ watch(() => props.items, () => {
 // Without `limit`, every item is shown on desktop and the list is cut after the first 10 on mobile
 const pageSize = computed(() => props.limit ?? (isMobile.value ? MAX_ITEMS_MOBILE : Infinity))
 const visibleCount = computed(() => pageSize.value + loadedMore.value)
-const visibleItems = computed(() => props.items.slice(0, visibleCount.value))
-const hiddenCount = computed(() => Math.max(0, props.items.length - visibleCount.value))
+const visibleItems = computed(() => matchingItems.value.slice(0, visibleCount.value))
+const hiddenCount = computed(() => Math.max(0, matchingItems.value.length - visibleCount.value))
 
 const visiblePlaces = (item: ListingItem) =>
   expanded.has(item.id) ? item.places : item.places.slice(0, MAX_PLACES)
@@ -61,8 +80,43 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
 </script>
 
 <template>
-  <section class="w-full text-left">
-    <h2 class="mb-4 text-xl font-bold">{{ title }}</h2>
+  <section class="min-w-0 w-full text-left">
+    <div class="mb-4 flex items-center justify-between gap-2">
+      <h2 class="min-w-0 text-xl font-bold">{{ title }}</h2>
+      <button
+        v-if="searchable"
+        ref="searchToggle"
+        type="button"
+        :aria-label="`${searchOpen ? 'Fermer la recherche' : 'Rechercher un titre'} dans ${title}`"
+        :title="searchOpen ? 'Fermer la recherche' : 'Rechercher un titre'"
+        :aria-expanded="searchOpen"
+        :aria-controls="searchId"
+        class="flex size-11 shrink-0 items-center justify-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400"
+        :class="{ 'bg-fuchsia-500/15 text-fuchsia-300': searchOpen }"
+        @click="toggleSearch"
+      >
+        <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m16 16 4.5 4.5" />
+        </svg>
+      </button>
+    </div>
+    <input
+      v-if="searchable && searchOpen"
+      :id="searchId"
+      ref="searchInput"
+      v-model="query"
+      type="search"
+      :aria-label="`Titre à rechercher dans ${title}`"
+      placeholder="Rechercher un titre…"
+      autocomplete="off"
+      class="mb-3 min-w-0 w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-base text-white outline-none placeholder:text-white/40 focus:border-fuchsia-400"
+      @keydown.esc.prevent="toggleSearch"
+    />
+    <p v-if="normalizedQuery" role="status" class="mb-3 text-sm text-white/60">
+      {{ matchingItems.length }} titre{{ matchingItems.length > 1 ? 's' : '' }} correspondant{{ matchingItems.length > 1 ? 's' : '' }}
+      <span v-if="!matchingItems.length"> — essaie un autre titre.</span>
+    </p>
     <p v-if="filtered && totalCount" role="status" class="-mt-2 mb-3 text-sm text-white/60">
       {{ items.length }} résultat{{ items.length > 1 ? 's' : '' }} sur {{ totalCount }}
     </p>
@@ -78,9 +132,9 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
         class="size-5 shrink-0 animate-spin rounded-full border-2 border-white/20 border-t-fuchsia-500"
         aria-hidden="true"
       ></span>
-      {{ items.length ? 'Mise à jour…' : loadingText }}
+      {{ items.length ? 'Recherche complémentaire…' : loadingText }}
     </p>
-    <p v-else-if="error" class="text-red-400">{{ error }}</p>
+    <p v-else-if="error" role="status" :class="items.length ? 'text-sm text-amber-200' : 'text-red-400'">{{ error }}</p>
     <div v-else-if="!items.length && filtered && totalCount" class="text-white/70">
       <p>Aucun résultat ne correspond à tes filtres.</p>
       <button
@@ -93,7 +147,7 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
     </div>
     <p v-else-if="!items.length" class="text-white/70">{{ emptyText }}</p>
 
-    <ul v-if="items.length" class="flex flex-col gap-3">
+    <ul v-if="matchingItems.length" class="flex flex-col gap-3">
       <li
         v-for="item in visibleItems"
         :key="item.id"
@@ -120,7 +174,8 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
           <li
             v-for="t in item.tags.slice(0, MAX_TAGS)"
             :key="t"
-            class="rounded-full bg-fuchsia-500/20 px-2.5 py-0.5 text-xs text-fuchsia-200"
+            :title="t"
+            class="max-w-full truncate rounded-full bg-fuchsia-500/20 px-2.5 py-0.5 text-xs text-fuchsia-200"
           >
             {{ t }}
           </li>

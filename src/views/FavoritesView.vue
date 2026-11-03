@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import ListingList from '../components/ListingList.vue'
 import ShortlistBar from '../components/ShortlistBar.vue'
+import { useShortlistStore } from '../stores/shortlist'
 import { useFavoritesStore } from '../stores/favorites'
 import { activityLabel, useSearchStore } from '../stores/search'
 import { FAVORITE_CATEGORIES } from '../services/personalFavorites'
@@ -10,6 +11,7 @@ import { hasMapPosition } from '../services/mapPlaces'
 
 const favorites = useFavoritesStore()
 const search = useSearchStore()
+const shortlist = useShortlistStore()
 const groups = computed(() => FAVORITE_CATEGORIES.map((category) => ({
   ...category,
   items: favorites.favorites.filter((entry) => entry.category === category.id).map((entry) => ({
@@ -25,7 +27,7 @@ const groups = computed(() => FAVORITE_CATEGORIES.map((category) => ({
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center gap-6 px-6 py-16 text-center text-white">
+  <main :class="shortlist.count > 0 ? 'pb-44' : 'pb-8 sm:pb-10'" class="mx-auto page-shell flex w-full max-w-5xl flex-col items-center gap-6 px-4 pt-8 sm:px-6 sm:pt-10 text-center text-white">
     <h1 class="text-3xl font-bold">❤️ Mes favoris <span v-if="favorites.count" class="text-xl text-white/50">({{ favorites.count }})</span></h1>
     <p class="max-w-lg text-sm text-white/60">Tes adresses enregistrées sur ce navigateur, même hors de ta recherche actuelle. Vérifie leurs horaires avant de partir.</p>
     <div v-if="!favorites.count" class="w-full max-w-md rounded-2xl border border-white/20 bg-white/5 p-6">

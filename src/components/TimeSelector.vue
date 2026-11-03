@@ -18,11 +18,11 @@ const earlier = () => (start.value = Math.max(0, start.value - VISIBLE))
 const later = () => (start.value = Math.min(HOURS.length - VISIBLE, start.value + VISIBLE))
 
 const arrowClass =
-  'flex size-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 text-2xl text-white transition hover:bg-white/10'
+  'flex size-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 text-2xl text-white transition hover:bg-white/10'
 </script>
 
 <template>
-  <div class="flex items-center justify-center gap-2">
+  <div class="grid w-full max-w-xl grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2">
     <!-- Arrows are hidden (not removed) when there is nothing further, so the hours do not jump -->
     <button
       type="button"
@@ -34,12 +34,12 @@ const arrowClass =
       ‹
     </button>
 
-    <div class="flex flex-wrap justify-center gap-3">
+    <div class="grid min-w-0 grid-cols-3 gap-2 min-[360px]:grid-cols-4 sm:grid-cols-7">
       <button
         v-for="h in visibleHours"
         :key="h"
         type="button"
-        class="w-16 rounded-xl border px-3 py-2 text-lg font-medium transition"
+        class="min-h-11 min-w-0 rounded-xl border px-1 py-2 text-base font-medium transition"
         :class="
           search.hour === h
             ? 'border-fuchsia-500 bg-fuchsia-500 text-white'

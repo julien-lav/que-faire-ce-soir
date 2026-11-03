@@ -19,9 +19,9 @@ onBeforeUnmount(() => clearTimeout(timer))
   <!-- Sits right above the back-to-top arrow (BackToTop.vue) -->
   <div
     v-if="shortlist.count > 0"
-    class="fixed right-4 bottom-[7.25rem] z-50 flex items-center gap-1 rounded-full bg-fuchsia-600 pr-1 pl-4 text-white shadow-lg"
+    class="fixed right-4 bottom-[7.25rem] z-40 max-w-[calc(100vw-2rem)] flex items-center gap-1 rounded-full bg-fuchsia-600 pr-1 pl-4 text-white shadow-lg"
   >
-    <button type="button" class="py-2 text-sm font-bold" role="status" @click="copy">
+    <button type="button" class="min-h-11 min-w-0 py-2 text-sm font-bold" role="status" @click="copy">
       {{
         feedback === 'copied'
           ? '✓ Copié !'
@@ -34,7 +34,7 @@ onBeforeUnmount(() => clearTimeout(timer))
       type="button"
       aria-label="Vider ma sélection"
       title="Vider ma sélection"
-      class="flex size-8 items-center justify-center rounded-full text-white/80 hover:bg-white/20"
+      class="flex size-11 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/20"
       @click="shortlist.clear()"
     >
       ✕

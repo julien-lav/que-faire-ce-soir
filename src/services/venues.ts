@@ -1,12 +1,11 @@
 import { haversineKm, sortByDistance, type ListingItem, type ListingPlace, type VenueService } from './listing'
-import { bbox, overpass, positionOf } from './overpass'
+import { bbox, cachedOverpass, overpass, positionOf, type OverpassElement } from './overpass'
 import { hoursInfo } from './placeHours'
 
 // Named places from OpenStreetMap (ODbL): restaurants, bars, pizzerias... One search, many kinds.
 
 export interface VenueKind {
-  // Overpass filters, without the bounding box: e.g. `"cuisine"="pizza"`
-  filter: string
+  matches?: (tags: Record<string, string>) => boolean
   // Only these `amenity` values are kept (a `cuisine` filter can match other kinds of places)
   amenities: string[]
   radiusKm: number
@@ -77,23 +76,23 @@ export function cuisineTags(t: Record<string, string>, skip: string[] = []): str
   return tags
 }
 
-export async function searchVenues(
+function buildVenues(
   kind: VenueKind,
   lat: number,
   lng: number,
   hour: number | null,
-): Promise<ListingItem[]> {
+  elements: OverpassElement[],
+): ListingItem[] {
   const { radiusKm } = kind
-  const query = `[out:json][timeout:40];nwr[${kind.filter}](${bbox(lat, lng, radiusKm)});out center tags;`
 
   // Places confirmed open come first, then the ones whose hours are missing
   const open: ListingItem[] = []
   const unknown: ListingItem[] = []
 
-  for (const e of await overpass(query)) {
+  for (const e of elements) {
     const t = e.tags ?? {}
     const pos = positionOf(e)
-    if (!t.name || !pos || !kind.amenities.includes(t.amenity ?? '')) continue
+    if (!t.name || !pos || !kind.amenities.includes(t.amenity ?? '') || (kind.matches && !kind.matches(t))) continue
 
     const distanceKm = haversineKm(lat, lng, pos.lat, pos.lng)
     if (distanceKm > radiusKm) continue
@@ -134,4 +133,57 @@ export async function searchVenues(
   }
 
   return [...sortByDistance(open), ...sortByDistance(unknown)]
+}
+
+// All three categories share these queries, including when selected at different times.
+// A small first area is cheap; the second pass covers each category's original radius.
+function venueQuery(lat: number, lng: number, radiusKm: number): string {
+  const area = bbox(lat, lng, radiusKm)
+  const selectors = ['restaurant', 'fast_food', 'bar', 'pub']
+    .map((amenity) => `nwr["amenity"="${amenity}"]["name"](${area});`).join('')
+  return `[out:json][timeout:10];(${selectors});out center tags;`
+}
+
+export async function searchVenues(
+  kind: VenueKind,
+  lat: number,
+  lng: number,
+  hour: number | null,
+  onPartial?: (items: ListingItem[]) => void,
+): Promise<ListingItem[]> {
+  const fullQuery = venueQuery(lat, lng, 2)
+  const cached = cachedOverpass(fullQuery)
+  let first: OverpassElement[] = []
+  let partial: ListingItem[] = []
+
+  if (cached) {
+    first = cached.elements
+    partial = buildVenues(kind, lat, lng, hour, first)
+    if (cached.fresh) return partial
+    partial = partial.map((item) => ({ ...item, tags: ['Données en cache', ...(item.tags ?? [])] }))
+    onPartial?.(partial)
+  } else {
+    try {
+      first = await overpass(venueQuery(lat, lng, 0.4), { timeoutMs: 6000 })
+      partial = buildVenues(kind, lat, lng, hour, first)
+      onPartial?.(partial)
+    } catch {
+      // A small-area failure must not prevent trying the full area.
+    }
+  }
+
+  try {
+    const full = await overpass(fullQuery, { timeoutMs: 12_000 })
+    // Keep the first addresses visible; prefer the latest version for duplicate OSM ids.
+    const merged = new Map(first.map((element) => [`${element.type}/${element.id}`, element]))
+    for (const element of full) merged.set(`${element.type}/${element.id}`, element)
+    return buildVenues(kind, lat, lng, hour, cached ? full : [...merged.values()])
+  } catch (error) {
+    if (partial.length && onPartial) {
+      throw new Error(cached
+        ? 'Actualisation indisponible : adresses en cache affichées. Vérifie leurs horaires avant de partir.'
+        : 'Recherche élargie indisponible : les premières adresses restent affichées. Réessaie pour compléter la liste.')
+    }
+    throw error
+  }
 }

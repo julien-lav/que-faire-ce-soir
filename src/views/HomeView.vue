@@ -26,22 +26,22 @@ function choose() {
 
 <template>
   <main
-    class="flex min-h-screen flex-col items-center justify-center gap-10 px-6 text-center text-white"
+    class="page-shell flex flex-col items-center justify-center gap-6 px-4 py-6 sm:gap-10 sm:px-6 sm:py-8 text-center text-white"
   >
-    <h1 class="text-4xl font-extrabold tracking-wide sm:text-5xl">QUE FAIRE CE SOIR ?</h1>
+    <h1 class="text-3xl font-extrabold tracking-wide sm:text-5xl">QUE FAIRE CE SOIR ?</h1>
 
     <LocationPicker />
 
-    <section class="flex flex-col items-center gap-4">
+    <section class="flex w-full max-w-xl flex-col items-center gap-4">
       <h2 class="text-lg text-white/70">À quelle heure ?</h2>
       <TimeSelector />
     </section>
 
-    <div class="flex flex-wrap items-center justify-center gap-4">
+    <div class="flex w-full flex-col items-center justify-center gap-4 sm:flex-row sm:flex-wrap">
       <button
         type="button"
         :disabled="!ready()"
-        class="rounded-full bg-gradient-to-r from-cyan-400 to-indigo-500 px-8 py-4 text-xl font-bold shadow-lg transition enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+        class="w-full max-w-sm rounded-full bg-gradient-to-r from-cyan-400 to-indigo-500 px-4 py-3 text-base font-bold sm:w-auto sm:max-w-none sm:px-8 sm:py-4 sm:text-xl shadow-lg transition enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
         @click="choose"
       >
         🎯 JE CHOISIS MES ACTIVITÉS
@@ -49,7 +49,7 @@ function choose() {
       <button
         type="button"
         :disabled="!ready()"
-        class="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-400 px-8 py-4 text-xl font-bold shadow-lg transition enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+        class="w-full max-w-sm rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-400 px-4 py-3 text-base font-bold sm:w-auto sm:max-w-none sm:px-8 sm:py-4 sm:text-xl shadow-lg transition enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
         @click="surprise"
       >
         ✨ SURPRENDS-MOI

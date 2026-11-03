@@ -1,127 +1,138 @@
-// OpenStreetMap's public Overpass servers are free but often slow or overloaded (504, timeouts).
-// Both servers are asked at the same time and the first answer wins.
-// In dev, Vite proxies them. In production they are called straight from the browser: Overpass allows
-// cross-origin requests. The public servers take turns being overloaded, so several are raced.
+// Use independent instances, with a delayed backup rather than racing every mirror at once.
 const ENDPOINTS = import.meta.env.PROD
-  ? [
-      'https://overpass.openstreetmap.fr/api',
-      'https://lz4.overpass-api.de/api',
-      'https://overpass-api.de/api',
-      'https://overpass.private.coffee/api',
-    ]
-  : ['/api/osm', '/api/overpass-mirror', '/api/overpass-mirror2']
+  ? ['https://overpass-api.de/api', 'https://overpass.private.coffee/api']
+  : ['/api/osm', '/api/overpass-mirror2']
 
-const TIMEOUT_MS = 45_000
-
-// 429 / 502 / 503 / 504 usually mean "busy right now": trying again a moment later often works
-const RETRYABLE_STATUSES = new Set([429, 502, 503, 504])
-const MAX_ATTEMPTS = 3
-const RETRY_DELAY_MS = 1500
-
-// A repeated query (page reload, coming back to the results) is answered without any request.
-// Kept in sessionStorage: it stays in this browser tab and is erased when the tab is closed.
+const TIMEOUT_MS = 20_000
+const BACKUP_DELAY_MS = 1000
 const CACHE_TTL_MS = 10 * 60_000
-const CACHE_PREFIX = 'overpass:'
+const STALE_TTL_MS = 7 * 24 * 60 * 60_000
+const CACHE_PREFIX = 'overpass:v2:'
+const MAX_CACHE_ENTRIES = 24
 
 export interface OverpassElement {
   type: 'node' | 'way' | 'relation'
   id: number
   lat?: number
   lon?: number
-  // Set for ways and relations by `out center`
   center?: { lat: number; lon: number }
   tags?: Record<string, string>
 }
 
-const memory = new Map<string, OverpassElement[]>()
+interface CacheEntry {
+  savedAt: number
+  elements: OverpassElement[]
+}
 
-function readCache(query: string): OverpassElement[] | null {
-  const hit = memory.get(query)
-  if (hit) return hit
+const memory = new Map<string, CacheEntry>()
+const pending = new Map<string, Promise<OverpassElement[]>>()
+
+function validElements(value: unknown): value is OverpassElement[] {
+  return Array.isArray(value) && value.every((element) => element &&
+    ['node', 'way', 'relation'].includes(element.type) && Number.isFinite(element.id))
+}
+
+// Stale entries are only a fallback for progressive venue loading, never a fresh API answer.
+export function cachedOverpass(query: string): (CacheEntry & { fresh: boolean }) | null {
+  let entry = memory.get(query)
   try {
-    const raw = sessionStorage.getItem(CACHE_PREFIX + query)
-    if (!raw) return null
-    const { savedAt, elements } = JSON.parse(raw) as { savedAt: number; elements: OverpassElement[] }
-    if (Date.now() - savedAt > CACHE_TTL_MS) return null
-    memory.set(query, elements)
-    return elements
+    const raw = localStorage.getItem(CACHE_PREFIX + query)
+    if (raw) {
+      const stored = JSON.parse(raw) as CacheEntry | null
+      if (stored && (!entry || stored.savedAt > entry.savedAt)) entry = stored
+    }
   } catch {
+    // Private mode / disabled storage: the in-memory cache still works.
+  }
+  if (!entry || !Number.isFinite(entry.savedAt) || !validElements(entry.elements)) return null
+  const age = Date.now() - entry.savedAt
+  if (age < 0 || age > STALE_TTL_MS) {
+    memory.delete(query)
+    try { localStorage.removeItem(CACHE_PREFIX + query) } catch { /* Storage unavailable */ }
     return null
   }
+  return { ...entry, fresh: age <= CACHE_TTL_MS }
 }
 
 function writeCache(query: string, elements: OverpassElement[]) {
-  memory.set(query, elements)
+  const entry = { savedAt: Date.now(), elements }
+  memory.delete(query)
+  memory.set(query, entry)
+  if (memory.size > MAX_CACHE_ENTRIES) memory.delete(memory.keys().next().value!)
   try {
-    sessionStorage.setItem(CACHE_PREFIX + query, JSON.stringify({ savedAt: Date.now(), elements }))
+    // Bound storage usage; never evict the user's favorites or another application's keys.
+    const keys = Object.keys(localStorage).filter((key) => key.startsWith(CACHE_PREFIX))
+    const oldest = keys.sort((a, b) => {
+      try {
+        return JSON.parse(localStorage.getItem(a)!).savedAt - JSON.parse(localStorage.getItem(b)!).savedAt
+      } catch { return 0 }
+    })
+    while (oldest.length >= MAX_CACHE_ENTRIES) localStorage.removeItem(oldest.shift()!)
+    localStorage.setItem(CACHE_PREFIX + query, JSON.stringify(entry))
   } catch {
-    // Storage full or unavailable: the in-memory copy is enough
+    // Quota exceeded / storage disabled: keep the in-memory answer.
   }
 }
 
-async function fetchFrom(
-  base: string,
-  query: string,
-  signal: AbortSignal,
-  started: number,
-): Promise<OverpassElement[]> {
-  const elapsed = () => Math.round(performance.now() - started)
-  let lastError: unknown
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    let res: Response | null = null
-    try {
-      res = await fetch(`${base}/interpreter?data=${encodeURIComponent(query)}`, { signal })
-    } catch (e) {
-      if (signal.aborted) throw e
-      lastError = e
-    }
-
-    if (res?.ok) {
-      const body: { elements: OverpassElement[] } = await res.json()
-      console.info(`[perf] Overpass ${base} : ${elapsed()} ms, ${body.elements.length} éléments`)
-      return body.elements
-    }
-
-    if (res) {
-      lastError = new Error(`OpenStreetMap: erreur ${res.status}`)
-      if (!RETRYABLE_STATUSES.has(res.status)) throw lastError
-    }
-    console.info(`[perf] Overpass ${base} : tentative ${attempt} échouée à ${elapsed()} ms`)
-
-    if (attempt < MAX_ATTEMPTS) {
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt))
-      signal.throwIfAborted()
-    }
-  }
-  throw lastError
+async function fetchFrom(base: string, query: string, signal: AbortSignal): Promise<OverpassElement[]> {
+  const res = await fetch(`${base}/interpreter?data=${encodeURIComponent(query)}`, { signal })
+  if (!res.ok) throw new Error(`OpenStreetMap : erreur ${res.status}`)
+  const body = await res.json() as { elements?: unknown; remark?: string }
+  // Overpass can return HTTP 200 with a runtime error and an incomplete (or empty) result.
+  if (body.remark || !validElements(body.elements)) throw new Error('Réponse OpenStreetMap incomplète')
+  return body.elements
 }
 
-export async function overpass(query: string): Promise<OverpassElement[]> {
-  const cached = readCache(query)
-  if (cached) return cached
-
-  const started = performance.now()
-  const controllers = ENDPOINTS.map(() => new AbortController())
-  const timer = setTimeout(() => controllers.forEach((c) => c.abort()), TIMEOUT_MS)
-
+async function request(query: string, timeoutMs: number): Promise<OverpassElement[]> {
+  const controller = new AbortController()
+  let backupTimer: ReturnType<typeof setTimeout> | undefined
+  let settled = false
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const elements = await Promise.any(
-      ENDPOINTS.map((base, i) => fetchFrom(base, query, controllers[i]!.signal, started)),
-    )
+    const elements = await new Promise<OverpassElement[]>((resolve, reject) => {
+      let failures = 0
+      let backupStarted = false
+      const launch = (base: string) => {
+        void fetchFrom(base, query, controller.signal).then(resolve, () => {
+          if (settled) return
+          failures++
+          if (!backupStarted && !controller.signal.aborted) startBackup()
+          if (failures === ENDPOINTS.length) reject(new Error('Overpass unavailable'))
+        })
+      }
+      const startBackup = () => {
+        if (backupStarted) return
+        backupStarted = true
+        clearTimeout(backupTimer)
+        launch(ENDPOINTS[1]!)
+      }
+      // Reject even if a fetch implementation fails to settle when aborted.
+      controller.signal.addEventListener('abort', () => reject(new Error('Overpass timeout')), { once: true })
+      backupTimer = setTimeout(startBackup, BACKUP_DELAY_MS)
+      launch(ENDPOINTS[0]!)
+    })
     writeCache(query, elements)
     return elements
   } catch {
-    throw new Error('OpenStreetMap est trop lent ou indisponible, réessayez dans un instant')
+    throw new Error('OpenStreetMap est indisponible pour cette zone. Réessaie dans un instant.')
   } finally {
-    clearTimeout(timer)
-    // Cancel whichever request is still running
-    controllers.forEach((c) => c.abort())
+    settled = true
+    clearTimeout(timeout)
+    clearTimeout(backupTimer)
+    controller.abort()
   }
 }
 
-// "south,west,north,east" box around a point. Much faster for Overpass than `around:`, which scans
-// every object carrying the tag; callers still filter by exact distance afterwards.
+export function overpass(query: string, options: { timeoutMs?: number } = {}): Promise<OverpassElement[]> {
+  const cached = cachedOverpass(query)
+  if (cached?.fresh) return Promise.resolve(cached.elements)
+  const existing = pending.get(query)
+  if (existing) return existing
+  const task = request(query, options.timeoutMs ?? TIMEOUT_MS).finally(() => pending.delete(query))
+  pending.set(query, task)
+  return task
+}
+
 export function bbox(lat: number, lng: number, radiusKm: number): string {
   const dLat = radiusKm / 111
   const dLng = radiusKm / (111 * Math.cos((lat * Math.PI) / 180))

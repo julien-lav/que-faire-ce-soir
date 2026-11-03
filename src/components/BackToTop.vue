@@ -19,7 +19,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
     v-if="visible"
     type="button"
     aria-label="Retour en haut"
-    class="fixed right-4 bottom-14 z-50 flex size-11 items-center justify-center rounded-full bg-fuchsia-600 text-xl text-white shadow-lg transition hover:bg-fuchsia-500"
+    class="fixed right-4 bottom-14 z-40 flex size-11 items-center justify-center rounded-full bg-fuchsia-600 text-xl text-white shadow-lg transition hover:bg-fuchsia-500"
     @click="toTop"
   >
     ↑

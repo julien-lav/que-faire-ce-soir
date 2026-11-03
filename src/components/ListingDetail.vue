@@ -42,7 +42,7 @@ function directionsUrl(p: ListingPlace) {
         role="dialog"
         aria-modal="true"
         :aria-label="item.title"
-        class="max-h-[85vh] w-full overflow-y-auto rounded-t-3xl border border-white/20 bg-slate-900 text-left text-white shadow-2xl md:max-w-lg md:rounded-3xl"
+        class="max-h-[85dvh] min-w-0 w-full [overflow-wrap:anywhere] overflow-y-auto rounded-t-3xl border border-white/20 bg-slate-900 text-left text-white shadow-2xl md:max-w-lg md:rounded-3xl"
       >
         <img
           v-if="item.imageUrl"
@@ -61,7 +61,7 @@ function directionsUrl(p: ListingPlace) {
             <button
               type="button"
               aria-label="Fermer"
-              class="rounded-full px-3 py-1 text-xl text-white/70 hover:bg-white/10"
+              class="flex size-11 shrink-0 items-center justify-center rounded-full text-xl text-white/70 hover:bg-white/10"
               @click="emit('close')"
             >
               ✕
@@ -72,7 +72,7 @@ function directionsUrl(p: ListingPlace) {
             <li
               v-for="t in item.tags"
               :key="t"
-              class="rounded-full bg-fuchsia-500/20 px-3 py-1 text-xs text-fuchsia-200"
+              class="max-w-full rounded-full bg-fuchsia-500/20 px-3 py-1 text-xs text-fuchsia-200"
             >
               {{ t }}
             </li>

@@ -27,20 +27,20 @@ const visibleCategories = computed(() =>
 
 <template>
   <main
-    class="flex min-h-screen flex-col items-center justify-center gap-8 px-6 text-center text-white"
+    class="page-shell flex flex-col items-center justify-center gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 text-center text-white"
   >
     <p class="text-white/70">
       {{ search.location }} · {{ search.hour !== null ? search.formatHour(search.hour) : '' }}
     </p>
-    <h1 class="text-3xl font-bold">🎯 Je choisis mes activités</h1>
+    <h1 class="text-2xl font-bold sm:text-3xl">🎯 Je choisis mes activités</h1>
     <p class="-mt-4 text-sm text-white/50">Tu peux en choisir plusieurs</p>
 
-    <div class="grid w-full max-w-md grid-cols-2 gap-4">
+    <div class="grid w-full max-w-md grid-cols-2 gap-3 sm:gap-4">
       <button
         v-for="c in visibleCategories"
         :key="c.id"
         type="button"
-        class="flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-8 text-xl font-bold transition hover:scale-105 last:odd:col-span-2"
+        class="flex min-w-0 flex-col items-center gap-2 rounded-2xl border-2 px-3 py-5 text-lg sm:px-4 sm:py-8 sm:text-xl font-bold transition hover:scale-105 last:odd:col-span-2"
         :disabled="!isAvailable(c.id) && c.id !== 'games'"
         :class="
           !isAvailable(c.id)
@@ -92,7 +92,7 @@ const visibleCategories = computed(() =>
         role="dialog"
         aria-modal="true"
         aria-labelledby="soon-title"
-        class="w-full max-w-sm rounded-2xl border border-white/20 bg-slate-900 p-6 text-center"
+        class="max-h-[calc(100dvh-3rem)] w-full max-w-sm overflow-y-auto rounded-2xl border border-white/20 bg-slate-900 p-6 text-center"
       >
         <p class="text-5xl">🎮</p>
         <h2 id="soon-title" class="mt-3 text-2xl font-bold">Bientôt disponible 🎮</h2>

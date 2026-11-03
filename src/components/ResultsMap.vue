@@ -133,7 +133,7 @@ onBeforeUnmount(() => {
       ref="container"
       role="region"
       aria-label="Carte interactive des résultats"
-      class="results-map relative isolate z-0 h-[360px] w-full overflow-hidden rounded-xl bg-slate-800 sm:h-[440px]"
+      class="results-map relative isolate z-0 h-[min(360px,55svh)] w-full overflow-hidden rounded-xl bg-slate-800 sm:h-[min(440px,60svh)]"
     ></div>
     <p v-if="tileError" role="status" class="mt-2 text-sm text-amber-200">
       Le fond de carte est indisponible pour le moment.

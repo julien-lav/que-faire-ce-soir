@@ -3,7 +3,7 @@ import { cuisineTags, searchVenues, serviceTags, type VenueKind } from './venues
 
 // Restaurants other than pizzerias and burger places, which have their own list
 const restaurant: VenueKind = {
-  filter: '"amenity"="restaurant"]["name"]["cuisine"!~"pizza|burger"',
+  matches: (tags) => !/pizza|burger/.test(tags.cuisine ?? ''),
   amenities: ['restaurant'],
   radiusKm: 1.5,
   fallbackName: 'Restaurant',
@@ -16,4 +16,5 @@ export const fetchNearbyRestaurants = (
   lat: number,
   lng: number,
   hour: number | null,
-): Promise<ListingItem[]> => searchVenues(restaurant, lat, lng, hour)
+  onPartial?: (items: ListingItem[]) => void,
+): Promise<ListingItem[]> => searchVenues(restaurant, lat, lng, hour, onPartial)
