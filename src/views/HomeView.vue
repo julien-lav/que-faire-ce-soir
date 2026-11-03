@@ -16,7 +16,8 @@ const ready = () => search.hour !== null && search.locationStatus !== 'needs-add
 
 function surprise() {
   if (!ready()) return
-  router.push({ name: 'suggestion' })
+  search.startSurprise()
+  router.push({ name: 'suggestion', query: { mode: 'surprise' } })
 }
 
 function choose() {

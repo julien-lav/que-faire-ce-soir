@@ -319,6 +319,23 @@ export const useSearchStore = defineStore('search', () => {
     }
   }
 
+  // A meal and something to do afterwards, using categories with real results.
+  // Exclude the current pair so asking again always offers a different idea.
+  function startSurprise() {
+    const ideas: CategoryId[][] = [
+      ['eat', 'out'],
+      ['pizza', 'cinema'],
+      ['eat', 'cinema'],
+      ['pizza', 'out'],
+    ]
+    const alternatives = ideas.filter((idea) =>
+      idea.length !== categories.value.length || !idea.every((id) => categories.value.includes(id)),
+    )
+    categories.value = [...alternatives[Math.floor(Math.random() * alternatives.length)]!]
+    filters.value = defaultListingFilters()
+    categories.value.forEach(ensureLoaded)
+  }
+
   return {
     location,
     locationStatus,
@@ -355,6 +372,7 @@ export const useSearchStore = defineStore('search', () => {
     outError,
     formatHour,
     toggleCategory,
+    startSurprise,
     ensureLoaded,
     setPlace,
   }

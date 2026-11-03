@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import LocationPicker from '../components/LocationPicker.vue'
 import ListingList from '../components/ListingList.vue'
 import ListingFilters from '../components/ListingFilters.vue'
 import ShortlistBar from '../components/ShortlistBar.vue'
@@ -11,6 +13,8 @@ import type { MapGroup } from '../services/mapPlaces'
 const ResultsMap = defineAsyncComponent(() => import('../components/ResultsMap.vue'))
 
 const search = useSearchStore()
+const route = useRoute()
+const isSurprise = computed(() => route.query.mode === 'surprise')
 const shortlist = useShortlistStore()
 const showFilters = ref(false)
 const showMap = ref(false)
@@ -92,6 +96,26 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
     <p class="text-white/70">
       {{ search.location }} · {{ search.hour !== null ? search.formatHour(search.hour) : '' }}
     </p>
+
+    <LocationPicker v-if="search.locationStatus === 'needs-address' || search.locationStatus === 'locating'" />
+
+    <section v-if="isSurprise && listCount > 0" class="flex w-full max-w-xl flex-col items-center gap-3">
+      <h1 class="text-2xl font-bold sm:text-3xl">✨ Ton idée de sortie</h1>
+      <p class="text-white/70">Un repas, puis une sortie : découvre les adresses et les séances près de toi.</p>
+      <p class="font-semibold text-fuchsia-200">{{ search.categories.map(activityLabel).join(' + ') }}</p>
+      <div class="flex flex-wrap items-center justify-center gap-3">
+        <button
+          type="button"
+          class="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-400 px-5 py-3 font-bold transition hover:scale-105"
+          @click="search.startSurprise()"
+        >
+          ✨ Une autre idée
+        </button>
+        <RouterLink :to="{ name: 'choose' }" class="rounded-full border border-white/30 px-5 py-3 transition hover:bg-white/10">
+          Choisir mes activités
+        </RouterLink>
+      </div>
+    </section>
 
     <div v-if="listCount > 0" class="w-full max-w-md text-left md:max-w-3xl">
       <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
@@ -262,7 +286,13 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         empty-text="Aucun musée trouvé près de vous."
       />
     </div>
-    <h1 v-else class="text-3xl font-bold">Ta sortie arrive bientôt…</h1>
+    <section v-else class="flex max-w-lg flex-col items-center gap-4">
+      <h1 class="text-2xl font-bold sm:text-3xl">Trouvons ta prochaine sortie</h1>
+      <p class="text-white/70">Choisis un lieu et une heure pour découvrir des restaurants, des bars ou des séances de cinéma près de toi.</p>
+      <RouterLink to="/" class="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-400 px-6 py-3 font-bold">
+        Trouver une sortie
+      </RouterLink>
+    </section>
 
     <RouterLink to="/" class="underline">← Retour</RouterLink>
     <ShortlistBar />
