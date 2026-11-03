@@ -3,6 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig, loadEnv } from 'vite'
 import { proxyGeoapify } from './server/geoapifyProxy.ts'
 import { fetchGeoapifyFromNode } from './server/geoapifyNode.ts'
+import { SEO_PAGES, seoHead } from './src/seo/site.ts'
 
 export default defineConfig(({ mode }) => {
   // Empty prefix: API keys stay on the dev server, without any VITE_ prefix.
@@ -10,7 +11,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue(), tailwindcss(), {
-      name: 'geoapify-server-api',
+      name: 'seo-and-server-api',
+      transformIndexHtml(html) {
+        return html.replace('<!--seo-head-->', `<!--seo-start-->${seoHead(SEO_PAGES.home!)}<!--seo-end-->`)
+      },
       configureServer(server) {
         server.middlewares.use('/api/geoapify', async (req, res) => {
           const controller = new AbortController()

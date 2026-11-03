@@ -165,7 +165,8 @@ Les clés n'ont **pas** de préfixe `VITE_` : elles restent côté serveur de de
 |---|---|
 | `npm run dev` | serveur de développement avec proxys d'API |
 | `npm test` | tests du chargement progressif, du cache et des pannes Overpass (réseau simulé) |
-| `npm run build` | vérification des types (`vue-tsc`) puis build de production |
+| `npm run build` | vérification des types, build et pré-rendu HTML des pages |
+| `npm run test:seo` | build complet puis contrôles du HTML, du sitemap, des métadonnées et de l’image sociale |
 | `npm run preview` | prévisualisation du build |
 
 ## Comment ça marche
@@ -248,6 +249,25 @@ Les données sont issues de la communauté [Mangrove / Open Reviews, sous licenc
 
 La couverture d'OSM est inégale. Les horaires sont © contributeurs OpenStreetMap (licence ODbL), ce qui est rappelé dans la fiche détail.
 
+## Référencement (SEO)
+
+Le build génère le contenu HTML des pages avant toute exécution de JavaScript : l’accueil contient son titre, une présentation du service et le formulaire. Le navigateur active ensuite l’application Vue habituelle. Ce pré-rendu n’appelle aucune API de sorties et n’accède à aucune donnée personnelle. Il réutilise les composants Vue plutôt qu’un texte réservé aux robots.
+
+- L’accueil `/` est la seule page indexable et la seule URL du sitemap.
+- `/choix`, `/suggestion` et `/favoris` dépendent des choix ou du stockage du navigateur : leurs fichiers HTML portent `noindex, follow`, dès la réponse initiale. Ils restent explorables pour que les robots puissent lire cette directive.
+- Chaque page a son titre, sa description et son URL canonique sans paramètres. Les métadonnées sont aussi mises à jour pendant la navigation Vue.
+- Open Graph et Twitter Cards utilisent `public/social-preview.png` (1200 × 630), dont la source modifiable est `public/social-preview.svg`. Actualiser les deux fichiers lorsqu’on change ce visuel.
+- Le favicon PNG carré de 96 × 96 remplace l’icône de démarrage ; son dessin source est `public/favicon.svg`.
+- Les données structurées JSON-LD décrivent le site et l’application web, sans notes, avis ni événements inventés.
+- `dist/robots.txt` et `dist/sitemap.xml` sont générés avec le build. Les API sont exclues de l’exploration ; les fichiers JS et CSS restent accessibles.
+- `dist/404.html` et la route Vue de secours affichent une page introuvable. En production, Cloudflare renvoie un statut HTTP 404 grâce au mode `404-page` ; les routes existantes disposent de leur propre fichier HTML et restent directement accessibles.
+
+L’origine publique et les textes SEO se configurent dans `src/seo/site.ts`. Pour un domaine personnalisé, modifier `SITE_URL`, reconstruire et redéployer ; les canoniques, le sitemap, l’image sociale et les données structurées seront mis à jour ensemble. Ne pas changer cette valeur vers une URL locale ou de prévisualisation.
+
+Après déploiement, vérifier le code source de `/`, `/favoris`, `/robots.txt`, `/sitemap.xml` et une URL inexistante. Dans [Google Search Console](https://search.google.com/search-console/about), vérifier la propriété du site, soumettre `https://que-faire-ce-soir.julien-laville.workers.dev/sitemap.xml` puis inspecter la page d’accueil. L’indexation et les positions ne sont pas garanties par ces changements techniques ; aucune soumission automatique n’est effectuée.
+
+Références : [référencement des applications JavaScript](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics) et [routage statique/404 de Cloudflare](https://developers.cloudflare.com/workers/static-assets/routing/static-site-generation/).
+
 ## Structure
 
 ```
@@ -269,7 +289,7 @@ Chaque source est convertie vers la même forme (`ListingItem` → `ListingPlace
 
 ## Passage en production
 
-Les proxys ci-dessus n'existent qu'en développement. En production, `worker/index.ts` (Cloudflare Worker, configuré par `wrangler.jsonc`) en est l'équivalent : il répond aux chemins `/api/...`, lit les clés côté serveur, et le reste est servi comme fichiers statiques depuis `dist` (avec repli sur `index.html` pour le routeur Vue). Les appels Overpass (pizzas, restaurants, bars, horaires des musées) ne passent pas par le Worker en production : le navigateur les envoie directement aux serveurs Overpass (voir `src/services/overpass.ts`).
+Les proxys ci-dessus n'existent qu'en développement. En production, `worker/index.ts` (Cloudflare Worker, configuré par `wrangler.jsonc`) en est l'équivalent : il répond aux chemins `/api/...`, lit les clés côté serveur, et le reste est servi comme fichiers statiques depuis `dist` (avec un fichier HTML pré-rendu par route et une page 404 dédiée). Les appels Overpass (pizzas, restaurants, bars, horaires des musées) ne passent pas par le Worker en production : le navigateur les envoie directement aux serveurs Overpass (voir `src/services/overpass.ts`).
 
 ### Déployer sur Cloudflare (Workers)
 
@@ -286,7 +306,7 @@ Le site est hébergé comme **Worker avec fichiers statiques** (domaine `*.worke
 5. **Déployer** : un `git push` sur `master` déclenche le build. Un secret ajouté ou modifié ne s'applique qu'au déploiement suivant.
 6. **Vérifier** : ouvrir `/api/adresse/search/?q=paris` (doit renvoyer du JSON) et `/api/ticketmaster/events.json?size=1` (des événements, et non « Invalid ApiKey »).
 
-Notes sur `wrangler.jsonc` : `assets.directory` pointe sur `dist`, `run_worker_first: ["/api/*"]` envoie uniquement les chemins `/api/` au Worker, et `not_found_handling: single-page-application` renvoie `index.html` pour les autres URL.
+Notes sur `wrangler.jsonc` : `assets.directory` pointe sur `dist`, `run_worker_first: ["/api/*"]` envoie uniquement les chemins `/api/` au Worker, et `html_handling: drop-trailing-slash` sert les pages pré-rendues sans extension, et `not_found_handling: 404-page` renvoie `404.html` avec le statut 404 pour les URL inconnues.
 
 Autres points à connaître :
 

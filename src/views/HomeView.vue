@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import LocationPicker from '../components/LocationPicker.vue'
 import TimeSelector from '../components/TimeSelector.vue'
 import { useSearchStore } from '../stores/search'
+import { HOME_INTRO } from '../seo/site'
 
 const search = useSearchStore()
 const router = useRouter()
@@ -55,5 +56,7 @@ function choose() {
         ✨ SURPRENDS-MOI
       </button>
     </div>
+
+    <p class="max-w-xl text-sm leading-relaxed text-white/65">{{ HOME_INTRO }}</p>
   </main>
 </template>

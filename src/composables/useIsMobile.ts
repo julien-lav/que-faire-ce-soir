@@ -4,14 +4,14 @@ import { onScopeDispose, ref } from 'vue'
 const QUERY = '(max-width: 767px)'
 
 export function useIsMobile() {
-  const mql = window.matchMedia(QUERY)
-  const isMobile = ref(mql.matches)
+  const mql = typeof window !== 'undefined' ? window.matchMedia(QUERY) : undefined
+  const isMobile = ref(mql?.matches ?? false)
   const onChange = (e: MediaQueryListEvent) => {
     isMobile.value = e.matches
   }
 
-  mql.addEventListener('change', onChange)
-  onScopeDispose(() => mql.removeEventListener('change', onChange))
+  mql?.addEventListener('change', onChange)
+  onScopeDispose(() => mql?.removeEventListener('change', onChange))
 
   return isMobile
 }
