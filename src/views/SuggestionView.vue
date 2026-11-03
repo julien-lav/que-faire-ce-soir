@@ -99,10 +99,12 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
 
     <LocationPicker v-if="search.locationStatus === 'needs-address' || search.locationStatus === 'locating'" />
 
-    <section v-if="isSurprise && listCount > 0" class="flex w-full max-w-xl flex-col items-center gap-3">
-      <h1 class="text-2xl font-bold sm:text-3xl">✨ Ton idée de sortie</h1>
-      <p class="text-white/70">Un repas, puis une sortie : découvre les adresses et les séances près de toi.</p>
-      <p class="font-semibold text-fuchsia-200">{{ search.categories.map(activityLabel).join(' + ') }}</p>
+    <section v-if="isSurprise && listCount > 0" class="flex w-full max-w-4xl flex-col items-center gap-3">
+      <h1 class="text-2xl font-bold sm:text-3xl">Ton idée de sortie</h1>
+      <p class="text-white/70">
+        Un repas, puis une sortie : découvre les adresses et les séances près de toi.
+        <strong class="inline-block font-semibold text-fuchsia-200">{{ search.categories.map(activityLabel).join(' + ') }}</strong>
+      </p>
       <div class="flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"
@@ -176,6 +178,8 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         @reset-filters="resetFilters"
         :loading="search.pizzaLoading"
         :error="search.pizzaError"
+        retryable
+        @retry="search.ensureLoaded('pizza')"
         :limit="12"
         loading-text="Recherche des pizzerias…"
         empty-text="Aucune pizzeria trouvée près de vous."
@@ -192,6 +196,8 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         @reset-filters="resetFilters"
         :loading="search.eatLoading"
         :error="search.eatError"
+        retryable
+        @retry="search.ensureLoaded('eat')"
         :limit="12"
         loading-text="Recherche des restaurants…"
         empty-text="Aucun restaurant trouvé près de vous."
@@ -208,6 +214,8 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         @reset-filters="resetFilters"
         :loading="search.outLoading"
         :error="search.outError"
+        retryable
+        @retry="search.ensureLoaded('out')"
         :limit="12"
         loading-text="Recherche des bars…"
         empty-text="Aucun bar trouvé près de vous."
@@ -224,6 +232,8 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         @reset-filters="resetFilters"
         :loading="search.cinemaLoading"
         :error="search.cinemaError"
+        retryable
+        @retry="search.ensureLoaded('cinema')"
         loading-text="Recherche des séances…"
         empty-text="Aucune séance trouvée près de vous."
       />
@@ -239,6 +249,8 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         @reset-filters="resetFilters"
         :loading="search.showLoading"
         :error="search.showError"
+        retryable
+        @retry="search.ensureLoaded('show')"
         loading-text="Recherche des spectacles…"
         empty-text="Aucun spectacle trouvé près de vous."
       />
@@ -254,6 +266,8 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         @reset-filters="resetFilters"
         :loading="search.concertLoading"
         :error="search.concertError"
+        retryable
+        @retry="search.ensureLoaded('concert')"
         loading-text="Recherche des concerts…"
         empty-text="Aucun concert trouvé près de vous."
       />
@@ -268,6 +282,8 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         @reset-filters="resetFilters"
         :loading="search.sportLoading"
         :error="search.sportError"
+        retryable
+        @retry="search.ensureLoaded('sport')"
         loading-text="Recherche des équipements sportifs…"
         empty-text="Aucun équipement sportif trouvé près de vous."
       />
@@ -282,6 +298,8 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
         @reset-filters="resetFilters"
         :loading="search.museumLoading"
         :error="search.museumError"
+        retryable
+        @retry="search.ensureLoaded('museum')"
         loading-text="Recherche des musées…"
         empty-text="Aucun musée trouvé près de vous."
       />

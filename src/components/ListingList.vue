@@ -21,6 +21,7 @@ const props = defineProps<{
   items: ListingItem[]
   loading: boolean
   error: string | null
+  retryable?: boolean
   loadingText: string
   slowSource?: boolean
   emptyText: string
@@ -31,7 +32,7 @@ const props = defineProps<{
   // Show only this many items first, on every screen size (default: all on desktop, 10 on mobile)
   limit?: number
 }>()
-const emit = defineEmits<{ resetFilters: [] }>()
+const emit = defineEmits<{ resetFilters: []; retry: [] }>()
 
 const shortlist = useShortlistStore()
 const expanded = reactive(new Set<string>())
@@ -132,7 +133,18 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
       :has-results="items.length > 0"
       :slow-source="slowSource"
     />
-    <p v-else-if="error" role="status" :class="items.length ? 'text-sm text-amber-200' : 'text-red-400'">{{ error }}</p>
+    <div v-else-if="error" class="mb-3">
+      <p role="status" :class="items.length ? 'text-sm text-amber-200' : 'text-red-400'">{{ error }}</p>
+      <button
+        v-if="retryable"
+        type="button"
+        :aria-label="`Réessayer la recherche : ${activity}`"
+        class="mt-3 min-h-11 rounded-full border border-fuchsia-400/50 px-4 py-2 text-sm text-fuchsia-200 transition hover:bg-fuchsia-500/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-400"
+        @click="emit('retry')"
+      >
+        Réessayer
+      </button>
+    </div>
     <div v-else-if="!items.length && filtered && totalCount" class="text-white/70">
       <p>Aucun résultat ne correspond à tes filtres.</p>
       <button

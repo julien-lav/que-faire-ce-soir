@@ -106,3 +106,50 @@ test('opening results without choices offers an actionable way to start', async 
   assert.match(html, /href="\/"[^>]*>\s*Trouver une sortie/)
   assert.ok(!html.includes('Ta sortie arrive bientôt'))
 })
+
+test('a failed search offers retry and can recover without changing the place, hour or activities', async () => {
+  const { search, app } = await setup()
+  const place = { label: 'Saint-Denis', lat: 48.938, lng: 2.358 }
+  search.setPlace(place)
+  search.hour = 19
+  search.categories = ['pizza']
+  let geoCalls = 0, osmCalls = 0
+  globalThis.fetch = async (url) => {
+    if (String(url).startsWith('/api/geoapify/')) geoCalls++
+    else osmCalls++
+    return new Response('', { status: 503 })
+  }
+
+  search.ensureLoaded('pizza')
+  await waitForSearch(search)
+  assert.equal(geoCalls, 1)
+  assert.ok(osmCalls > 0, 'OpenStreetMap must be tried automatically before showing an error')
+  assert.ok(search.pizzaError)
+  const errorHtml = await renderToString(app)
+  assert.match(errorHtml, /<button[^>]*aria-label="Réessayer la recherche : 🍕 Pizza"[^>]*>\s*Réessayer/)
+
+  globalThis.fetch = async (url) => {
+    if (String(url).startsWith('/api/mangrove/')) return Response.json({ reviews: [] })
+    assert.ok(String(url).startsWith('/api/geoapify/'), 'Retry starts with the primary provider')
+    geoCalls++
+    return Response.json({ type: 'FeatureCollection', features: [{
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [place.lng, place.lat] },
+      properties: { place_id: 'retry-pizza', name: 'Pizza retrouvée', categories: ['catering.restaurant.pizza'] },
+    }] })
+  }
+  search.ensureLoaded('pizza')
+  search.ensureLoaded('pizza')
+  assert.equal(search.pizzaLoading, true)
+  assert.equal(search.pizzaError, null)
+  await waitForSearch(search)
+  assert.equal(geoCalls, 2, 'Repeated clicks must share the running search')
+  assert.equal(search.pizzaError, null)
+  assert.equal(search.pizzaListings[0].title, 'Pizza retrouvée')
+  assert.deepEqual(search.place, place)
+  assert.equal(search.hour, 19)
+  assert.deepEqual(search.categories, ['pizza'])
+  const successHtml = await renderToString(app)
+  assert.ok(successHtml.includes('Pizza retrouvée'))
+  assert.ok(!successHtml.includes('Réessayer la recherche'))
+})

@@ -227,6 +227,9 @@ export async function searchVenues(
       if (previous.length && !osmResultsShown && onPartial) {
         throw new Error('Actualisation indisponible : adresses en cache affichées. Vérifie leurs horaires avant de partir.')
       }
+      if (!osmResultsShown) {
+        throw new Error('La recherche d’adresses est temporairement indisponible. Réessaie dans un instant.')
+      }
       throw error
     }
   }
