@@ -2,6 +2,7 @@ export type VenueService = 'delivery' | 'takeaway' | 'dineIn'
 
 // Shape shared by every "near you" list (movies, shows, ...): an item is played at several places.
 export interface ListingPlace {
+  source?: 'geoapify' | 'openstreetmap'
   id: string
   name: string
   distanceKm?: number

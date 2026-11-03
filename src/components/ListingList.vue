@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, useId, watch } from 'vue'
 import ListingDetail from './ListingDetail.vue'
+import VenueAttribution from './VenueAttribution.vue'
+import ListingLoadingStatus from './ListingLoadingStatus.vue'
 import VenueRating from './VenueRating.vue'
 import FavoriteButton from './FavoriteButton.vue'
 import type { FavoriteCategory } from '../services/personalFavorites'
@@ -20,6 +22,7 @@ const props = defineProps<{
   loading: boolean
   error: string | null
   loadingText: string
+  slowSource?: boolean
   emptyText: string
   filtered?: boolean
   totalCount?: number
@@ -43,6 +46,7 @@ const searchToggle = ref<HTMLButtonElement | null>(null)
 const searchId = useId()
 const normalizeTitle = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('fr').trim()
 const normalizedQuery = computed(() => props.searchable ? normalizeTitle(query.value) : '')
+const hasGeoapify = computed(() => props.items.some((item) => item.places.some((place) => place.source === 'geoapify')))
 const matchingItems = computed(() => normalizedQuery.value
   ? props.items.filter((item) => normalizeTitle(item.title).includes(normalizedQuery.value))
   : props.items)
@@ -122,18 +126,12 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
     </p>
 
     <!-- Results already received stay visible while the rest (e.g. opening hours) still loads -->
-    <p
+    <ListingLoadingStatus
       v-if="loading"
-      role="status"
-      class="flex items-center gap-3 text-white/70"
-      :class="{ 'mb-3 text-sm': items.length }"
-    >
-      <span
-        class="size-5 shrink-0 animate-spin rounded-full border-2 border-white/20 border-t-fuchsia-500"
-        aria-hidden="true"
-      ></span>
-      {{ items.length ? 'Recherche complémentaire…' : loadingText }}
-    </p>
+      :label="loadingText"
+      :has-results="items.length > 0"
+      :slow-source="slowSource"
+    />
     <p v-else-if="error" role="status" :class="items.length ? 'text-sm text-amber-200' : 'text-red-400'">{{ error }}</p>
     <div v-else-if="!items.length && filtered && totalCount" class="text-white/70">
       <p>Aucun résultat ne correspond à tes filtres.</p>
@@ -246,6 +244,8 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
     >
       Charger plus ({{ hiddenCount }})
     </button>
+
+    <VenueAttribution v-if="hasGeoapify" class="mt-3" />
 
     <ListingDetail v-if="selected" :item="selected" :favorite-category="favoriteCategory" @close="selected = null" />
   </section>

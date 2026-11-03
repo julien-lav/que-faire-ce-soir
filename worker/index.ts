@@ -1,8 +1,11 @@
+import { proxyGeoapify } from '../server/geoapifyProxy.ts'
+
 // Production equivalent of the dev proxies in vite.config.ts (Cloudflare Worker).
 // Secrets (CINEMA_API_KEY, TICKETMASTER_KEY) are read from the Pages environment, never shipped to the browser.
 interface Env {
   CINEMA_API_KEY?: string
   TICKETMASTER_KEY?: string
+  GEOAPIFY_API_KEY?: string
 }
 
 interface Route {
@@ -52,6 +55,10 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
     if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 })
+
+    if (url.pathname.startsWith('/api/geoapify')) {
+      return proxyGeoapify(request, env.GEOAPIFY_API_KEY)
+    }
 
     const [, , name, ...tail] = url.pathname.split('/') // ['', 'api', name, ...]
     const route = name ? ROUTES[name] : undefined

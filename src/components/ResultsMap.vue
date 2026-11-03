@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import ListingDetail from './ListingDetail.vue'
+import VenueAttribution from './VenueAttribution.vue'
 import type { ListingItem } from '../services/listing'
 import { isFavoriteCategory, type FavoriteCategory } from '../services/personalFavorites'
 import { buildMapPlaces, hasMapPosition, type MapGroup, type MapPoint } from '../services/mapPlaces'
@@ -144,6 +145,7 @@ onBeforeUnmount(() => {
       <li v-for="group in legend" :key="group.id">{{ group.label }}</li>
     </ul>
     <p v-if="missing" class="mt-2 text-xs text-white/50">{{ missing }} lieu{{ missing > 1 ? 'x' : '' }} sans position disponible {{ missing > 1 ? 'restent accessibles' : 'reste accessible' }} dans les listes.</p>
+    <VenueAttribution v-if="groups.some((group) => group.items.some((item) => item.places.some((place) => place.source === 'geoapify')))" class="mt-3" />
     <ListingDetail v-if="selected" :item="selected" :favorite-category="selectedCategory" @close="selected = null" />
   </section>
 </template>

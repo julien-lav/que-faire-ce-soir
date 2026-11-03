@@ -14,6 +14,7 @@ Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4
 - **Fenêtre horaire** : de l'heure choisie jusqu'à 3h du matin, calculée à l'heure de Paris quel que soit le fuseau du navigateur. Une heure déjà passée aujourd'hui démarre à maintenant.
 - **Adresses recommandées** : une courte liste écrite à la main dans `src/data/favorites.ts` (un nom et une zone, par exemple « I Briganti » dans le 14e). Un résultat qui correspond passe en premier, avec une ★ et un fond doré. Une adresse recommandée n'apparaît que si elle fait partie des résultats (dans la zone cherchée, et ouverte si une heure est choisie).
 - **Favoris personnels ❤️** : le cœur et le bouton ＋ sont alignés sur une même ligne en bas à droite des cartes. Le cœur permet d’enregistrer ou de retirer le lieu en un clic ; lorsqu’une carte regroupe plusieurs lieux, il ouvre la fiche pour choisir lesquels enregistrer. Pour le cinéma, les spectacles et les concerts, c'est le cinéma ou la salle qui est conservé, avec son nom et son adresse. « Mes favoris », en haut à droite juste avant l’icône GitHub sur toutes les pages, ouvre `/favoris` : toutes les adresses enregistrées restent consultables, même hors de la recherche et des filtres actuels. Les coordonnées, contacts et descriptions des lieux sont sauvegardés dans le `localStorage` du navigateur, sans compte ni API supplémentaire. Les programmes, liens de réservation, horaires quotidiens et états d'ouverture ne sont pas conservés ; les distances sont recalculées depuis le lieu de recherche lorsqu'il est connu. Les cœurs se synchronisent entre onglets du même navigateur. Les favoris persistent après fermeture, mais restent propres au navigateur et disparaissent si ses données de site sont effacées. Si l'enregistrement est bloqué, un message indique que les favoris restent disponibles pour la visite en cours.
+- **Attente des adresses** : pour les pizzerias, restaurants et bars, un message explique que les premières adresses s’affichent dès leur arrivée. Après 5 secondes, il invite à patienter pendant la recherche des adresses ; après 12 secondes, il rappelle que les résultats apparaissent automatiquement. Dès qu’une première liste est disponible, il précise que les adresses sont utilisables pendant la recherche complémentaire. Les messages disparaissent à la fin de la recherche, sans pourcentage de progression artificiel.
 - **Cartes** : titre (limité à 2 lignes), pastilles de genre, lieux triés par distance (3 par résultat, puis « Voir plus »).
 - **Recherche par titre** : une loupe après les titres Cinéma, Spectacles et Concerts ouvre un champ de recherche propre à chaque colonne. Les cartes déjà chargées sont filtrées immédiatement sur leur titre, sans tenir compte des majuscules ni des accents et sans appel API. La recherche inclut les cartes au-delà de « Charger plus ». Vider le champ ou refermer avec la loupe (ou Échap) réaffiche la liste.
 - **Filtres des résultats** : masqués par défaut, ils s'ouvrent avec « Afficher les filtres » et se replient avec « Masquer les filtres ». La mention « Filtres actifs » reste visible lorsqu'un filtre s'applique, même si le panneau est replié. Distance maximale pour toutes les activités ; « Ouverts à l'heure choisie » pour les pizzerias, restaurants, bars et musées ; service au choix (Sur place, À emporter, Livraison) pour les pizzerias et restaurants. Les filtres se combinent et agissent immédiatement sur les lieux déjà trouvés, sans nouvel appel API ni élargissement du rayon initial. Les horaires ou services inconnus sont exclus quand le filtre correspondant est actif. Un compteur et un bouton de réinitialisation permettent de retrouver tous les résultats. Les filtres restent sélectionnés pendant la navigation, jusqu'à leur réinitialisation ou au rechargement de la page.
@@ -30,9 +31,9 @@ Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4
 | 🎵 Concert | Ticketmaster Discovery (« Music ») | oui | oui |
 | 🏃 Sport | [Équipements sportifs](https://equipements.sports.gouv.fr) (ministère des Sports) | non | non |
 | 🏛️ Musée | [Muséofile](https://www.data.gouv.fr/datasets/musees-de-france-base-museofile) (ministère de la Culture) + horaires [OpenStreetMap](https://www.openstreetmap.org) | si connus d'OSM | non |
-| 🍕 Pizza | pizzerias d'[OpenStreetMap](https://www.openstreetmap.org) | si connus d'OSM | non |
-| 🍝 Manger | restaurants d'[OpenStreetMap](https://www.openstreetmap.org), hors pizzerias et burgers | si connus d'OSM | non |
-| 🍸 Un verre | bars et pubs d'[OpenStreetMap](https://www.openstreetmap.org) | si connus d'OSM | non |
+| 🍕 Pizza | Geoapify, secours OpenStreetMap | si disponibles | Geoapify facultative |
+| 🍝 Manger | Geoapify, secours OpenStreetMap, hors pizzas et burgers | si disponibles | Geoapify facultative |
+| 🍸 Un verre | Geoapify, secours OpenStreetMap | si disponibles | Geoapify facultative |
 | 🎮 Jeux | pas encore | – | – |
 
 Les catégories pas encore disponibles sont affichées grisées avec la mention « Bientôt ». Un clic sur « Jeux » ouvre une pop-up « Bientôt disponible : location de consoles et manettes pour vos soirées ».
@@ -151,11 +152,12 @@ Contenu de `.env.local` :
 ```
 CINEMA_API_KEY=ac_live_...
 TICKETMASTER_KEY=...
+GEOAPIFY_API_KEY=...
 ```
 
-Sans clé, les pizzerias, restaurants, bars, le sport et les musées fonctionnent (données ouvertes), ainsi que les notes Mangrove et les liens Google Maps. Seuls le ciné, les spectacles et les concerts nécessitent les clés ci-dessus ; sans elles, ces catégories affichent une erreur 401.
+`GEOAPIFY_API_KEY` active Geoapify en priorité pour les pizzerias, restaurants et bars. Si la clé est absente, invalide, si le quota est épuisé ou si la réponse dépasse 4 secondes, l’application passe automatiquement à OpenStreetMap/Overpass. Le sport, les musées, les notes Mangrove et les liens Google Maps ne demandent pas de clé. Le cinéma nécessite `CINEMA_API_KEY` ; les spectacles et concerts nécessitent `TICKETMASTER_KEY`.
 
-Les clés n'ont **pas** de préfixe `VITE_` : elles restent côté serveur de dev et n'arrivent jamais dans le code envoyé au navigateur. `.env.local` est ignoré par git (règle `*.local`). Redémarrez `npm run dev` après toute modification.
+Les clés n'ont **pas** de préfixe `VITE_` : elles restent côté serveur de dev et n'arrivent jamais dans le code envoyé au navigateur. `.env` et `.env.local` sont ignorés par git. Les deux sont acceptés ; `.env.local` permet de garder une configuration propre à cette machine. Un modèle sans secret est fourni dans `.env.example`. Redémarrez `npm run dev` après toute modification.
 
 ### Scripts
 
@@ -172,6 +174,7 @@ En développement, le navigateur appelle `/api/...` et Vite (`vite.config.ts`) r
 
 | Chemin local | Destination | Authentification |
 |---|---|---|
+| `/api/geoapify/places` | `https://api.geoapify.com/v2/places` | `GEOAPIFY_API_KEY` ajoutée côté serveur |
 | `/api/cinema/*` | `https://api.api-cinema.com/v1/*` | header `Authorization: Bearer` |
 | `/api/ticketmaster/*` | `https://app.ticketmaster.com/discovery/v2/*` | paramètre `apikey` ajouté côté serveur |
 | `/api/sports/*` | `https://equipements.sports.gouv.fr/api/explore/v2.1/catalog/datasets/*` | aucune |
@@ -193,15 +196,31 @@ Les données du ministère n'ont pas de coordonnées et d'activités au même en
 
 Ces données n'ont pas d'horaires : l'heure choisie n'est pas utilisée pour le sport.
 
-### Pizza : pizzerias OpenStreetMap
+### Adresses : Geoapify en priorité, Overpass en secours
 
-Les pizzerias sont les restaurants et fast-foods d'OpenStreetMap dont la cuisine (`cuisine`) contient « pizza », dans un rayon de 2 km. Pizza, restaurants et bars partagent désormais les mêmes requêtes : les lieux nommés (`restaurant`, `fast_food`, `bar`, `pub`) sont récupérés ensemble et classés côté application. Une première recherche dans un rayon d’environ **400 m** affiche les adresses proches, puis une seconde couvre **2 km** (les restaurants et bars restent filtrés à 1,5 km). Les premières cartes restent utilisables pendant la « Recherche complémentaire… ». Un échec de la première passe n’empêche pas la seconde ; si l’élargissement échoue, les premières adresses restent affichées avec un avertissement indiquant que la liste est incomplète.
+Les recherches passent par **Geoapify Places**, via `/api/geoapify/places` en développement comme en production. La clé `GEOAPIFY_API_KEY` est injectée uniquement côté serveur (Vite ou Worker). Le proxy accepte les seules catégories de l’app, dans un rayon maximal de 2 km, avec 40 résultats maximum, et ne transmet pas les messages d’erreur du fournisseur au navigateur. Aucun appel Place Details supplémentaire n’est effectué par carte. En développement, le proxy utilise un transport HTTPS Node dédié pour éviter l’abandon prématuré des tentatives de connexion IPv4/IPv6 sur les réseaux plus lents ; la limite globale du chargement reste appliquée. Le Worker utilise son transport `fetch` standard.
+
+- Pizzerias : `catering.restaurant.pizza` et `catering.fast_food.pizza`, rayon 2 km.
+- Restaurants : `catering.restaurant`, rayon 1,5 km, avec exclusion des pizzas et burgers côté application.
+- Bars : `catering.bar` et `catering.pub`, rayon 1,5 km.
+
+Une réponse Geoapify valide, même vide, termine la recherche. Si Geoapify échoue ou ne répond pas en **4 secondes**, la requête est annulée et la recherche progressive Overpass prend le relais. Chaque catégorie fait au plus un appel Geoapify (40 lieux maximum) ; les appels identiques sont mutualisés et réutilisés depuis le cache frais pendant 10 minutes. Ce résultat limité aux lieux les plus proches ne prétend pas lister tous les établissements de la zone. Si les deux sources échouent, les données en cache de moins de 7 jours restent affichées avec un avertissement, lorsqu’elles existent.
+
+Les identifiants OSM (`node/…`, `way/…`, `relation/…`) sont conservés quand ils sont fournis ; sinon l’identifiant est préfixé par `geoapify:`. Cela préserve les favoris existants et la correspondance des notes lorsque l’identité OSM est disponible. Les coordonnées, catégories, contacts et horaires sont récupérés quand la réponse les contient ; des horaires absents restent inconnus et sont exclus du filtre « Ouverts ». Les cartes, fiches, favoris et la carte affichent l’attribution Geoapify / OpenStreetMap pour les lieux concernés.
+
+Documentation : [Places API](https://apidocs.geoapify.com/docs/places/) ; [offre gratuite et attribution](https://www.geoapify.com/pricing/). La gratuité est limitée par les crédits du compte ; ce n’est pas un accès illimité.
+
+Pour tester : ajouter la clé dans `.env.local` ou `.env`, redémarrer `npm run dev`, chercher à Saint-Denis puis ouvrir l’onglet Réseau. Une requête `/api/geoapify/places` en HTTP 200 doit afficher des cartes avec « Powered by Geoapify ». Avec une clé absente/invalide ou une requête Geoapify bloquée, les appels Overpass doivent prendre le relais. La bascule est testée automatiquement avec réponses lentes et pannes simulées via `npm test`.
+
+### Secours : pizzerias OpenStreetMap
+
+Les pizzerias sont les restaurants et fast-foods d'OpenStreetMap dont la cuisine (`cuisine`) contient « pizza », dans un rayon de 2 km. Lorsque le secours est utilisé, pizza, restaurants et bars partagent les mêmes requêtes Overpass : les lieux nommés (`restaurant`, `fast_food`, `bar`, `pub`) sont récupérés ensemble et classés côté application. Une première recherche dans un rayon d’environ **400 m** affiche les adresses proches, puis une seconde couvre **2 km** (les restaurants et bars restent filtrés à 1,5 km). Les premières cartes restent utilisables pendant la « Recherche complémentaire… ». Un échec de la première passe n’empêche pas la seconde ; si l’élargissement échoue, les premières adresses restent affichées avec un avertissement indiquant que la liste est incomplète.
 
 Les requêtes identiques en cours sont mutualisées. Les réponses complètes sont conservées **10 minutes** en mémoire et dans `localStorage`, avec leurs données OSM brutes pour recalculer les horaires selon l’heure choisie. Une réponse de moins de **7 jours** peut être affichée immédiatement pendant une actualisation, avec la pastille « Données en cache » ; si l’API est indisponible, elle reste visible avec un avertissement. Ce cache ne garantit pas les horaires actuels. Il est limité à 24 requêtes ; les favoris ne sont pas concernés. Si le stockage est désactivé ou plein, l’application continue avec le cache mémoire. Sans résultat ni cache, une panne de tous les serveurs peut encore empêcher tout affichage.
 
 Plus généralement, la recherche d'une catégorie démarre dès qu'on la coche sur la page des envies (et non au clic sur « GO ») : le temps que l'utilisateur finisse de choisir, les sources lentes ont déjà répondu. Chaque carte affiche des pastilles (Livraison, À emporter, Sur place, autres cuisines), la distance et les horaires du jour. La fiche détail ajoute le téléphone (« Appeler »), le site web et l'itinéraire. Comme pour les musées : les pizzerias confirmées ouvertes passent en premier, puis celles sans horaires renseignés, et celles que les horaires disent fermées sont masquées. Les données sont © contributeurs OpenStreetMap (ODbL), avec une couverture inégale (surtout pour le téléphone, la livraison et les horaires).
 
-### Manger et Un verre : restaurants et bars OpenStreetMap
+### Secours : restaurants et bars OpenStreetMap
 
 Même principe que les pizzerias (code commun dans `src/services/venues.ts`), dans un rayon de 1,5 km. « Manger » liste les `amenity=restaurant` nommés dont la cuisine n'est ni pizza ni burger (ces deux-là ont leur propre catégorie ou sont écartés), avec les pastilles de service et le type de cuisine. « Un verre » liste les `amenity=bar` et `amenity=pub` nommés, avec la pastille « Terrasse » quand elle est renseignée. Mêmes règles d'horaires que pour les pizzerias : ouverts confirmés d'abord, puis horaires inconnus, les fermés à l'heure choisie sont masqués.
 
@@ -259,9 +278,9 @@ Le site est hébergé comme **Worker avec fichiers statiques** (domaine `*.worke
 1. **Connecter le dépôt** : Workers & Pages → Create → importer le dépôt GitHub, branche de production `master`.
 2. **Build** (Settings → Build) : commande de build `npm run build`, commande de déploiement `npx wrangler deploy`, dossier racine `/`.
 3. **Nom du Worker** : le `name` de `wrangler.jsonc` (`que-faire-ce-soir`) doit être identique au nom du Worker dans Cloudflare, sinon le déploiement crée un autre Worker.
-4. **Ajouter les clés** `CINEMA_API_KEY` et `TICKETMASTER_KEY`, au bon endroit :
+4. **Ajouter les clés** `CINEMA_API_KEY`, `TICKETMASTER_KEY` et `GEOAPIFY_API_KEY`, au bon endroit :
    - Dashboard : Workers & Pages → le Worker → **Settings → Variables and Secrets** (le bloc du haut, celui du Worker en fonctionnement), type **Secret** ;
-   - ou en terminal : `npx wrangler secret put CINEMA_API_KEY` puis `npx wrangler secret put TICKETMASTER_KEY` (connexion à Cloudflare au premier lancement).
+   - ou en terminal : `npx wrangler secret put CINEMA_API_KEY`, `npx wrangler secret put TICKETMASTER_KEY` et `npx wrangler secret put GEOAPIFY_API_KEY` (connexion à Cloudflare au premier lancement).
    - **Piège** : la section « Variables and secrets » de **Settings → Build** ne sert qu'au moment du build, le Worker ne la voit jamais (erreurs 401 sur Ticketmaster et Ciné).
    - Une variable de type *Text* peut être supprimée à chaque déploiement ; `keep_vars` dans `wrangler.jsonc` limite ce risque, mais les clés doivent rester de type *Secret*.
 5. **Déployer** : un `git push` sur `master` déclenche le build. Un secret ajouté ou modifié ne s'applique qu'au déploiement suivant.

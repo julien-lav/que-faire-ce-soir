@@ -50,6 +50,7 @@ export function createPersonalFavorite(category: FavoriteCategory, item: Listing
   const title = favoriteTitle(category, item, place)
   const savedPlace: ListingPlace = {
     id: place.id,
+    source: place.source,
     name: place.name,
     address: text(place.address),
     phone: text(place.phone),
@@ -98,6 +99,7 @@ export function parsePersonalFavorites(raw: string | null): PersonalFavorite[] {
       tags: Array.isArray(item.tags) ? item.tags.filter((tag): tag is string => typeof tag === 'string') : undefined,
     }
     const safePlace: ListingPlace = {
+      source: place.source === 'geoapify' || place.source === 'openstreetmap' ? place.source : undefined,
       id: text(place.id)!, name: text(place.name)!, times: [], address: text(place.address),
       phone: text(place.phone), websiteUrl: website(place.websiteUrl), reviewable: place.reviewable === true,
       lat: typeof place.lat === 'number' ? place.lat : undefined,

@@ -2,6 +2,7 @@ import type { ListingItem } from './listing'
 import { searchVenues, type VenueKind } from './venues'
 
 const bar: VenueKind = {
+  geoapifyCategories: ['catering.bar', 'catering.pub'],
   amenities: ['bar', 'pub'],
   radiusKm: 1.5,
   fallbackName: 'Bar',

@@ -2,6 +2,7 @@ import type { ListingItem } from './listing'
 import { cuisineTags, searchVenues, serviceTags, type VenueKind } from './venues'
 
 const pizzeria: VenueKind = {
+  geoapifyCategories: ['catering.restaurant.pizza', 'catering.fast_food.pizza'],
   matches: (tags) => /pizza/.test(tags.cuisine ?? ''),
   amenities: ['restaurant', 'fast_food'],
   radiusKm: 2,

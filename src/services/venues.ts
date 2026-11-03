@@ -1,10 +1,12 @@
 import { haversineKm, sortByDistance, type ListingItem, type ListingPlace, type VenueService } from './listing'
 import { bbox, cachedOverpass, overpass, positionOf, type OverpassElement } from './overpass'
 import { hoursInfo } from './placeHours'
+import { cachedGeoapify, fetchGeoapify, type VenueRecord } from './geoapify'
 
 // Named places from OpenStreetMap (ODbL): restaurants, bars, pizzerias... One search, many kinds.
 
 export interface VenueKind {
+  geoapifyCategories: string[]
   matches?: (tags: Record<string, string>) => boolean
   // Only these `amenity` values are kept (a `cuisine` filter can match other kinds of places)
   amenities: string[]
@@ -81,7 +83,7 @@ function buildVenues(
   lat: number,
   lng: number,
   hour: number | null,
-  elements: OverpassElement[],
+  elements: VenueRecord[],
 ): ListingItem[] {
   const { radiusKm } = kind
 
@@ -91,7 +93,7 @@ function buildVenues(
 
   for (const e of elements) {
     const t = e.tags ?? {}
-    const pos = positionOf(e)
+    const pos = e
     if (!t.name || !pos || !kind.amenities.includes(t.amenity ?? '') || (kind.matches && !kind.matches(t))) continue
 
     const distanceKm = haversineKm(lat, lng, pos.lat, pos.lng)
@@ -107,7 +109,7 @@ function buildVenues(
       detailIcon: '🕐',
     }
 
-    const id = `${e.type}/${e.id}`
+    const id = e.id
     ;(info?.known ? open : unknown).push({
       id,
       title: t.name,
@@ -115,9 +117,10 @@ function buildVenues(
       places: [
         {
           id,
+          source: e.source,
           name: street || kind.fallbackName,
           distanceKm,
-          address: [street, city].filter(Boolean).join(', ') || undefined,
+          address: [street, city].filter(Boolean).join(', ') || t['addr:full'] || undefined,
           lat: pos.lat,
           lng: pos.lng,
           phone: firstOf(t.phone ?? t['contact:phone']),
@@ -127,12 +130,20 @@ function buildVenues(
           times: [],
           detailIcon: kind.icon,
           ...hours,
+          ...(hours.scheduleSource && e.source === 'geoapify' ? { scheduleSource: 'Geoapify / OpenStreetMap' } : {}),
         },
       ],
     })
   }
 
   return [...sortByDistance(open), ...sortByDistance(unknown)]
+}
+
+function buildOsmVenues(kind: VenueKind, lat: number, lng: number, hour: number | null, elements: OverpassElement[]) {
+  return buildVenues(kind, lat, lng, hour, elements.flatMap((element) => {
+    const pos = positionOf(element)
+    return pos ? [{ ...pos, id: `${element.type}/${element.id}`, tags: element.tags ?? {}, source: 'openstreetmap' as const }] : []
+  }))
 }
 
 // All three categories share these queries, including when selected at different times.
@@ -144,7 +155,7 @@ function venueQuery(lat: number, lng: number, radiusKm: number): string {
   return `[out:json][timeout:10];(${selectors});out center tags;`
 }
 
-export async function searchVenues(
+async function searchOsmVenues(
   kind: VenueKind,
   lat: number,
   lng: number,
@@ -158,14 +169,14 @@ export async function searchVenues(
 
   if (cached) {
     first = cached.elements
-    partial = buildVenues(kind, lat, lng, hour, first)
+    partial = buildOsmVenues(kind, lat, lng, hour, first)
     if (cached.fresh) return partial
     partial = partial.map((item) => ({ ...item, tags: ['Données en cache', ...(item.tags ?? [])] }))
     onPartial?.(partial)
   } else {
     try {
       first = await overpass(venueQuery(lat, lng, 0.4), { timeoutMs: 6000 })
-      partial = buildVenues(kind, lat, lng, hour, first)
+      partial = buildOsmVenues(kind, lat, lng, hour, first)
       onPartial?.(partial)
     } catch {
       // A small-area failure must not prevent trying the full area.
@@ -177,7 +188,7 @@ export async function searchVenues(
     // Keep the first addresses visible; prefer the latest version for duplicate OSM ids.
     const merged = new Map(first.map((element) => [`${element.type}/${element.id}`, element]))
     for (const element of full) merged.set(`${element.type}/${element.id}`, element)
-    return buildVenues(kind, lat, lng, hour, cached ? full : [...merged.values()])
+    return buildOsmVenues(kind, lat, lng, hour, cached ? full : [...merged.values()])
   } catch (error) {
     if (partial.length && onPartial) {
       throw new Error(cached
@@ -185,5 +196,38 @@ export async function searchVenues(
         : 'Recherche élargie indisponible : les premières adresses restent affichées. Réessaie pour compléter la liste.')
     }
     throw error
+  }
+}
+
+
+export async function searchVenues(
+  kind: VenueKind,
+  lat: number,
+  lng: number,
+  hour: number | null,
+  onPartial?: (items: ListingItem[]) => void,
+): Promise<ListingItem[]> {
+  const cached = cachedGeoapify(kind.geoapifyCategories, lat, lng, kind.radiusKm)
+  const previous = cached && !cached.fresh
+    ? buildVenues(kind, lat, lng, hour, cached.venues).map((item) => ({ ...item, tags: ['Données en cache', ...(item.tags ?? [])] }))
+    : []
+  if (previous.length) onPartial?.(previous)
+  try {
+    const venues = await fetchGeoapify(kind.geoapifyCategories, lat, lng, kind.radiusKm)
+    return buildVenues(kind, lat, lng, hour, venues)
+  } catch {
+    // Missing key, invalid response, quota, network error, or the four-second deadline.
+    let osmResultsShown = false
+    try {
+      return await searchOsmVenues(kind, lat, lng, hour, (items) => {
+        if (items.length) osmResultsShown = true
+        if (items.length || !previous.length) onPartial?.(items)
+      })
+    } catch (error) {
+      if (previous.length && !osmResultsShown && onPartial) {
+        throw new Error('Actualisation indisponible : adresses en cache affichées. Vérifie leurs horaires avant de partir.')
+      }
+      throw error
+    }
   }
 }

@@ -1,13 +1,31 @@
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig, loadEnv } from 'vite'
+import { proxyGeoapify } from './server/geoapifyProxy.ts'
+import { fetchGeoapifyFromNode } from './server/geoapifyNode.ts'
 
 export default defineConfig(({ mode }) => {
-  // Empty prefix: load CINEMA_API_KEY / TICKETMASTER_KEY (not VITE_-prefixed) so they never reach the client bundle.
+  // Empty prefix: API keys stay on the dev server, without any VITE_ prefix.
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    plugins: [vue(), tailwindcss()],
+    plugins: [vue(), tailwindcss(), {
+      name: 'geoapify-server-api',
+      configureServer(server) {
+        server.middlewares.use('/api/geoapify', async (req, res) => {
+          const controller = new AbortController()
+          res.on('close', () => { if (!res.writableEnded) controller.abort() })
+          // Connect strips the mount path from req.url; reconstruct only this fixed API prefix.
+          const request = new Request(new URL(`/api/geoapify${req.url ?? ''}`, 'http://localhost'), {
+            method: req.method, signal: controller.signal,
+          })
+          const response = await proxyGeoapify(request, env.GEOAPIFY_API_KEY, fetchGeoapifyFromNode)
+          res.statusCode = response.status
+          res.setHeader('Content-Type', 'application/json')
+          res.end(await response.text())
+        })
+      },
+    }],
     server: {
       proxy: {
         '/api/mangrove': {

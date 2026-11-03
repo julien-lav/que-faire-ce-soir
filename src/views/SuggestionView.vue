@@ -142,6 +142,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
     >
       <ListingList
         v-if="hasPizza"
+        slow-source
         :activity="activityLabel('pizza')"
         title="🍕 Pizzerias près de vous"
         favorite-category="pizza"
@@ -157,6 +158,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasEat"
+        slow-source
         :activity="activityLabel('eat')"
         title="🍝 Restaurants près de vous"
         favorite-category="eat"
@@ -172,6 +174,7 @@ onMounted(() => search.categories.forEach((id) => search.ensureLoaded(id)))
       />
       <ListingList
         v-if="hasOut"
+        slow-source
         :activity="activityLabel('out')"
         title="🍸 Bars près de vous"
         favorite-category="out"

@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted } from 'vue'
 import type { ListingItem, ListingPlace } from '../services/listing'
 import VenueRating from './VenueRating.vue'
+import VenueAttribution from './VenueAttribution.vue'
 import FavoriteButton from './FavoriteButton.vue'
 import type { FavoriteCategory } from '../services/personalFavorites'
 import { googleMapsUrl } from '../services/ratings'
@@ -151,6 +152,7 @@ function directionsUrl(p: ListingPlace) {
               </a>
             </div>
           </div>
+          <VenueAttribution v-if="item.places.some((place) => place.source === 'geoapify')" />
         </div>
       </div>
     </div>
