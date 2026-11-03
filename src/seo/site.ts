@@ -1,5 +1,5 @@
-// Update this origin when moving the production site to a custom domain.
-export const SITE_URL = 'https://que-faire-ce-soir.julien-laville.workers.dev'
+// Public production origin used by canonical URLs, sharing metadata and the sitemap.
+export const SITE_URL = 'https://quefairecesoir.app'
 export const SITE_NAME = 'Que faire ce soir ?'
 export const HOME_DESCRIPTION = 'Restaurants, pizzerias, cinéma, concerts et spectacles près de chez vous. Choisissez votre lieu et votre heure pour trouver une sortie ce soir.'
 export const HOME_INTRO = 'Trouve une idée de sortie près de toi : restaurant, pizzeria, cinéma, concert ou spectacle. Choisis ton lieu et ton heure pour préparer ta soirée.'

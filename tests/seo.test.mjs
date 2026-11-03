@@ -3,7 +3,7 @@ import { readFile, access } from 'node:fs/promises'
 import { test } from 'node:test'
 
 const read = (name) => readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8')
-const canonical = 'https://que-faire-ce-soir.julien-laville.workers.dev/'
+const canonical = 'https://quefairecesoir.app/'
 
 // Inspect shipped HTML, not only metadata after JavaScript has run.
 test('homepage has crawlable French content, one title, description and canonical before JavaScript', async () => {

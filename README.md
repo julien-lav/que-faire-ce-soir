@@ -2,7 +2,7 @@
 
 Une petite app pour trouver quoi faire ce soir près de chez soi : une pizza, un restaurant, un verre, un film, un spectacle, un concert, du sport ou un musée. On choisit une heure et une ou plusieurs envies, l'app liste ce qui est disponible autour de soi, trié par distance.
 
-🔗 **Site en ligne : https://que-faire-ce-soir.julien-laville.workers.dev/**
+🔗 **Site en ligne : https://quefairecesoir.app/**
 
 Stack : Vue 3 (`<script setup>`), TypeScript, Pinia, Vue Router, Tailwind CSS v4, Vite.
 
@@ -262,9 +262,9 @@ Le build génère le contenu HTML des pages avant toute exécution de JavaScript
 - `dist/robots.txt` et `dist/sitemap.xml` sont générés avec le build. Les API sont exclues de l’exploration ; les fichiers JS et CSS restent accessibles.
 - `dist/404.html` et la route Vue de secours affichent une page introuvable. En production, Cloudflare renvoie un statut HTTP 404 grâce au mode `404-page` ; les routes existantes disposent de leur propre fichier HTML et restent directement accessibles.
 
-L’origine publique et les textes SEO se configurent dans `src/seo/site.ts`. Pour un domaine personnalisé, modifier `SITE_URL`, reconstruire et redéployer ; les canoniques, le sitemap, l’image sociale et les données structurées seront mis à jour ensemble. Ne pas changer cette valeur vers une URL locale ou de prévisualisation.
+L’origine publique est `https://quefairecesoir.app`, configurée par `SITE_URL` dans `src/seo/site.ts` avec les textes SEO. Après toute modification de cette origine, reconstruire et redéployer ; les canoniques, le sitemap, l’image sociale et les données structurées seront mis à jour ensemble. Ne pas changer cette valeur vers une URL locale ou de prévisualisation.
 
-Après déploiement, vérifier le code source de `/`, `/favoris`, `/robots.txt`, `/sitemap.xml` et une URL inexistante. Dans [Google Search Console](https://search.google.com/search-console/about), vérifier la propriété du site, soumettre `https://que-faire-ce-soir.julien-laville.workers.dev/sitemap.xml` puis inspecter la page d’accueil. L’indexation et les positions ne sont pas garanties par ces changements techniques ; aucune soumission automatique n’est effectuée.
+Après déploiement, vérifier le code source de `/`, `/favoris`, `/robots.txt`, `/sitemap.xml` et une URL inexistante. Dans [Google Search Console](https://search.google.com/search-console/about), vérifier la propriété du site, soumettre `https://quefairecesoir.app/sitemap.xml` puis inspecter la page d’accueil. L’indexation et les positions ne sont pas garanties par ces changements techniques ; aucune soumission automatique n’est effectuée.
 
 Références : [référencement des applications JavaScript](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics) et [routage statique/404 de Cloudflare](https://developers.cloudflare.com/workers/static-assets/routing/static-site-generation/).
 
@@ -293,7 +293,7 @@ Les proxys ci-dessus n'existent qu'en développement. En production, `worker/ind
 
 ### Déployer sur Cloudflare (Workers)
 
-Le site est hébergé comme **Worker avec fichiers statiques** (domaine `*.workers.dev`), pas comme Cloudflare Pages : le dossier `functions/` de Pages n'est donc pas utilisé.
+Le site est hébergé comme **Worker avec fichiers statiques**, avec le domaine personnalisé `quefairecesoir.app`, pas comme Cloudflare Pages : le dossier `functions/` de Pages n'est donc pas utilisé.
 
 1. **Connecter le dépôt** : Workers & Pages → Create → importer le dépôt GitHub, branche de production `master`.
 2. **Build** (Settings → Build) : commande de build `npm run build`, commande de déploiement `npx wrangler deploy`, dossier racine `/`.
@@ -305,6 +305,14 @@ Le site est hébergé comme **Worker avec fichiers statiques** (domaine `*.worke
    - Une variable de type *Text* peut être supprimée à chaque déploiement ; `keep_vars` dans `wrangler.jsonc` limite ce risque, mais les clés doivent rester de type *Secret*.
 5. **Déployer** : un `git push` sur `master` déclenche le build. Un secret ajouté ou modifié ne s'applique qu'au déploiement suivant.
 6. **Vérifier** : ouvrir `/api/adresse/search/?q=paris` (doit renvoyer du JSON) et `/api/ticketmaster/events.json?size=1` (des événements, et non « Invalid ApiKey »).
+
+### Domaine personnalisé : quefairecesoir.app
+
+Le domaine acheté doit être **Active** dans le même compte Cloudflare que le Worker. S’il est enregistré chez un autre fournisseur, l’ajouter d’abord à Cloudflare et remplacer ses serveurs de noms chez le registraire par ceux fournis par Cloudflare.
+
+Dans **Workers & Pages → que-faire-ce-soir → Settings → Domains & Routes → Add → Custom Domain**, saisir `quefairecesoir.app` (sans `https://`). Cloudflare crée le DNS et le certificat HTTPS. Ce rattachement se fait dans le tableau de bord ; acheter le domaine ou modifier ce dépôt ne l’active pas automatiquement sur le Worker. Voir la [documentation Cloudflare](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
+
+Après le rattachement, reconstruire et déployer pour publier les métadonnées du nouveau domaine. Vérifier `https://quefairecesoir.app/`, `/robots.txt` et `/sitemap.xml`, puis soumettre `https://quefairecesoir.app/sitemap.xml` dans Google Search Console. Prévoir une redirection permanente de l’ancienne adresse `https://que-faire-ce-soir.julien-laville.workers.dev/` vers le nouveau domaine en conservant le chemin et les paramètres ; cette redirection n’est pas configurée par cette modification.
 
 Notes sur `wrangler.jsonc` : `assets.directory` pointe sur `dist`, `run_worker_first: ["/api/*"]` envoie uniquement les chemins `/api/` au Worker, et `html_handling: drop-trailing-slash` sert les pages pré-rendues sans extension, et `not_found_handling: 404-page` renvoie `404.html` avec le statut 404 pour les URL inconnues.
 
