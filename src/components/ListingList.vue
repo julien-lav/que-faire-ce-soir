@@ -239,7 +239,7 @@ const formatDistance = (km: number) => `${km.toFixed(1)} km`
             :aria-pressed="shortlist.has(activity, item)"
             :aria-label="shortlist.has(activity, item) ? 'Retirer de ma sélection' : 'Ajouter à ma sélection'"
             :title="shortlist.has(activity, item) ? 'Retirer de ma sélection' : 'Ajouter à ma sélection'"
-            @click.stop="shortlist.toggle(activity, item)"
+            @click.stop="shortlist.toggle(activity, { ...item, places: visiblePlaces(item) })"
             @keydown.enter.stop
           >
             {{ shortlist.has(activity, item) ? '✓' : '＋' }}
